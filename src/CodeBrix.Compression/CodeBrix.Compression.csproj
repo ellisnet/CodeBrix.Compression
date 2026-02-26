@@ -6,10 +6,11 @@
     <!-- NuGet package properties -->
     <PackageId>CodeBrix.Compression.MitLicenseForever</PackageId>
     <Version>1.0.48</Version>
+    <Product>CodeBrix.Compression</Product>
     <Title>CodeBrix.Compression</Title>
     <Description>Create, read and extract Zip, GZip, Tar and BZip2 archives using .NET. Supports AES-128 and AES-256 encryption, Zip64, and streaming operations. A fork of SharpZipLib 1.4.2 with no dependencies other than .NET.</Description>
     <Authors>Jeremy Ellis</Authors>
-    <Copyright>Copyright (c) 2026 Jeremy Ellis</Copyright>
+    <Copyright>Copyright (c) 2026 Jeremy Ellis and contributors</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>icon-codebrix-128.png</PackageIcon>
     <PackageProjectUrl>https://github.com/ellisnet/CodeBrix.Compression</PackageProjectUrl>
