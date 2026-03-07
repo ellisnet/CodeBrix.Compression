@@ -1,0 +1,68 @@
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+
+CodeBrix.Compression incorporates third-party open source code from the
+project(s) listed below. The original copyright notice and the license under
+which the code was received are set forth below. This file is provided for
+informational purposes only. Even if a particular third-party library is listed
+here, that does not change the license terms under which CodeBrix.Compression is
+distributed (MIT License).
+
+All code in CodeBrix.Compression that was copied, modified, adapted or
+repurposed from the source(s) listed below remains freely available as open
+source under the same license as the original source code, as required by the
+terms of that license.
+
+================================================================================
+
+1. SharpZipLib (ICSharpCode.SharpZipLib) version 1.4.2
+================================================================================
+
+Project:        SharpZipLib (#ziplib, formerly NZipLib)
+Version used:   1.4.2 (released January 29, 2023)
+Project URL:    https://github.com/icsharpcode/SharpZipLib
+NuGet:          https://www.nuget.org/packages/SharpZipLib/
+License:        MIT License
+
+Description:
+SharpZipLib is a compression library for .NET that supports Zip files using both
+stored and deflate compression methods, PKZIP 2.0 style and AES encryption, tar
+with GNU long filename extensions, GZip, zlib and raw deflate, as well as BZip2.
+It is implemented entirely in C# for the .NET platform.
+
+SharpZipLib was initially developed by Mike Krueger and subsequently maintained
+by John Reilly, David Pierson and Neil McNeight, along with many community
+contributors.
+
+License text:
+--------------------------------------------------------------------------------
+
+Copyright (c) 2000-2018 SharpZipLib Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+================================================================================
+
+Note on licensing history:
+Previous versions of SharpZipLib (before the relicensing effort documented in
+https://github.com/icsharpcode/SharpZipLib/issues/103) were released under the
+GNU General Public License, version 2, with a linking exception (the GNU
+Classpath exception) which allowed linking with non-GPL programs. Version 1.4.2
+of SharpZipLib, from which CodeBrix.Compression is derived, is licensed under
+the MIT License as shown above.
+
+================================================================================
