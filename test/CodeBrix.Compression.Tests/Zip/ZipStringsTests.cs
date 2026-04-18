@@ -1,23 +1,19 @@
-﻿using CodeBrix.Compression.Tests.TestSupport;
+using CodeBrix.Compression.Tests.TestSupport;
 using CodeBrix.Compression.Tests.Zip;
 using CodeBrix.Compression.Zip;
-using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using Does = CodeBrix.Compression.Tests.TestSupport.Does;
+using Xunit;
 
 // As there is no way to order the test namespace execution order we use a name that should be alphabetically sorted before any other namespace
 // This is because we have one test that only works when no encoding provider has been loaded which is not reversable once done.
 namespace CodeBrix.Compression.Tests._Zip;
 
-[TestFixture]
-[Order(1)]
 public class ZipStringsTests
 {
-    [Test]
-    [Order(1)]
+    [Fact]
     // NOTE: This test needs to be run before any test registering CodePagesEncodingProvider.Instance
     public void TestSystemDefaultEncoding()
     {
@@ -29,12 +25,11 @@ public class ZipStringsTests
         var sc = StringCodec.Default;
 
         var legacyEncoding = sc.ZipEncoding(false);
-        Assert.That(legacyEncoding.EncodingName, Is.EqualTo(TestEncodingProvider.DefaultEncodingName));
-        Assert.That(legacyEncoding.CodePage, Is.EqualTo(TestEncodingProvider.DefaultEncodingCodePage)); 
+        Assert.Equal(TestEncodingProvider.DefaultEncodingName, legacyEncoding.EncodingName);
+        Assert.Equal(TestEncodingProvider.DefaultEncodingCodePage, legacyEncoding.CodePage);
     }
 
-    [Test]
-    [Order(2)]
+    [Fact]
     public void TestFastZipRoundTripWithCodePage()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -63,13 +58,12 @@ public class ZipStringsTests
             Console.WriteLine(f);
         }
 
-        Assert.That(dstDir.GetFile("file1").FullName, Does.Exist);
-        Assert.That(dstDir.GetFile("слово").FullName, Does.Exist);
+        Assert.True(File.Exists(dstDir.GetFile("file1").FullName) || Directory.Exists(dstDir.GetFile("file1").FullName));
+        Assert.True(File.Exists(dstDir.GetFile("слово").FullName) || Directory.Exists(dstDir.GetFile("слово").FullName));
     }
 
 
-    [Test]
-    [Order(2)]
+    [Fact]
     public void TestZipFileRoundTripWithCodePage()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -88,14 +82,13 @@ public class ZipStringsTests
 
         using (var zf = new ZipFile(ms, false, StringCodec.FromCodePage(866)) { IsStreamOwner = false })
         {
-            Assert.That(zf.GetEntry("file1"), Is.Not.Null);
-            Assert.That(zf.GetEntry("слово"), Is.Not.Null);
+            Assert.NotNull(zf.GetEntry("file1"));
+            Assert.NotNull(zf.GetEntry("слово"));
         }
 
     }
 
-    [Test]
-    [Order(2)]
+    [Fact]
     public void TestZipStreamRoundTripWithCodePage()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -111,14 +104,13 @@ public class ZipStringsTests
 
         using (var zis = new ZipInputStream(ms, StringCodec.FromCodePage(866)) { IsStreamOwner = false })
         {
-            Assert.That(zis.GetNextEntry().Name, Is.EqualTo("file1"));
-            Assert.That(zis.GetNextEntry().Name, Is.EqualTo("слово"));
+            Assert.Equal("file1", zis.GetNextEntry().Name);
+            Assert.Equal("слово", zis.GetNextEntry().Name);
         }
 
     }
 
-    [Test]
-    [Order(2)]
+    [Fact]
     public void TestZipCryptoPasswordEncodingRoundtrip()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -140,14 +132,13 @@ public class ZipStringsTests
             zis.Password = "слово";
             var entry = zis.GetNextEntry();
             var output = new byte[32];
-            Assert.That(zis.Read(output, 0, 32), Is.EqualTo(32));
-            Assert.That(output, Is.EqualTo(content));
+            Assert.Equal(32, zis.Read(output, 0, 32));
+            Assert.Equal(content, output);
         }
 
     }
 
-    [Test]
-    [Order(2)]
+    [Fact]
     public void TestZipStreamCommentEncodingRoundtrip()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -163,12 +154,11 @@ public class ZipStringsTests
         ms.Seek(0, SeekOrigin.Begin);
 
         using var zf = new ZipFile(ms, false, StringCodec.FromCodePage(866));
-        Assert.That(zf.ZipFileComment, Is.EqualTo("слово"));
+        Assert.Equal("слово", zf.ZipFileComment);
     }
 
 
-    [Test]
-    [Order(2)]
+    [Fact]
     public void TestZipFileCommentEncodingRoundtrip()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -188,7 +178,7 @@ public class ZipStringsTests
 
         using (var zf = new ZipFile(ms, false, StringCodec.FromCodePage(866)))
         {
-            Assert.That(zf.ZipFileComment, Is.EqualTo("слово"));
+            Assert.Equal("слово", zf.ZipFileComment);
         }
     }
 }
@@ -204,16 +194,16 @@ internal class TestEncodingProvider : EncodingProvider
         public override string EncodingName => DefaultEncodingName;
         public override int CodePage => DefaultEncodingCodePage;
 
-        public override int GetByteCount(char[] chars, int index, int count) 
+        public override int GetByteCount(char[] chars, int index, int count)
             => UTF8.GetByteCount(chars, index, count);
 
-        public override int GetBytes(char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex) 
+        public override int GetBytes(char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex)
             => UTF8.GetBytes(chars, charIndex, charCount, bytes, byteIndex);
 
         public override int GetCharCount(byte[] bytes, int index, int count)
             => UTF8.GetCharCount(bytes, index, count);
 
-        public override int GetChars(byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex) 
+        public override int GetChars(byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex)
             => UTF8.GetChars(bytes, byteIndex, byteCount, chars, charIndex);
 
         public override int GetMaxByteCount(int charCount) => UTF8.GetMaxByteCount(charCount);
@@ -226,7 +216,7 @@ internal class TestEncodingProvider : EncodingProvider
     public override Encoding GetEncoding(int codepage)
         => (codepage == 0 || codepage == DefaultEncodingCodePage) ? testDefaultEncoding : null;
 
-    public override Encoding GetEncoding(string name) 
+    public override Encoding GetEncoding(string name)
         => DefaultEncodingName == name ? testDefaultEncoding : null;
 
     public override IEnumerable<EncodingInfo> GetEncodings()

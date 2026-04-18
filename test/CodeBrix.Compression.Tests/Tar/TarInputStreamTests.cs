@@ -1,19 +1,18 @@
 using CodeBrix.Compression.Tar;
 using CodeBrix.Compression.Tests.TestSupport;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System;
 using System.Buffers;
 using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Tar;
 
 public class TarInputStreamTests
 {
-    [Test]
+    [Fact]
     public void TestRead()
     {
         var entryBytes = Utils.GetDummyBytes(2000);
@@ -31,26 +30,26 @@ public class TarInputStreamTests
 
         using var tis = new TarInputStream(ms, Encoding.UTF8);
         var entry = tis.GetNextEntry();
-        ClassicAssert.AreEqual("some entry", entry.Name);
+        Assert.Equal("some entry", entry.Name);
         var buffer = new byte[1000]; // smaller than 2 blocks
         var read0 = tis.Read(buffer, 0, buffer.Length);
-        ClassicAssert.AreEqual(1000, read0);
-        ClassicAssert.AreEqual(entryBytes.AsSpan(0, 1000).ToArray(), buffer);
+        Assert.Equal(1000, read0);
+        Assert.Equal(entryBytes.AsSpan(0, 1000).ToArray(), buffer);
 
         var read1 = tis.Read(buffer, 0, 5);
-        ClassicAssert.AreEqual(5, read1);
-        ClassicAssert.AreEqual(entryBytes.AsSpan(1000, 5).ToArray(), buffer.AsSpan().Slice(0, 5).ToArray());
+        Assert.Equal(5, read1);
+        Assert.Equal(entryBytes.AsSpan(1000, 5).ToArray(), buffer.AsSpan().Slice(0, 5).ToArray());
 
         var read2 = tis.Read(buffer, 0, 20);
-        ClassicAssert.AreEqual(20, read2);
-        ClassicAssert.AreEqual(entryBytes.AsSpan(1005, 20).ToArray(), buffer.AsSpan().Slice(0, 20).ToArray());
+        Assert.Equal(20, read2);
+        Assert.Equal(entryBytes.AsSpan(1005, 20).ToArray(), buffer.AsSpan().Slice(0, 20).ToArray());
 
         var read3 = tis.Read(buffer, 0, 975);
-        ClassicAssert.AreEqual(975, read3);
-        ClassicAssert.AreEqual(entryBytes.AsSpan(1025, 975).ToArray(), buffer.AsSpan().Slice(0, 975).ToArray());
+        Assert.Equal(975, read3);
+        Assert.Equal(entryBytes.AsSpan(1025, 975).ToArray(), buffer.AsSpan().Slice(0, 975).ToArray());
     }
 
-    [Test]
+    [Fact]
     public async Task TestReadAsync()
     {
         var entryBytes = Utils.GetDummyBytes(2000);
@@ -68,26 +67,26 @@ public class TarInputStreamTests
 
         await using var tis = new TarInputStream(ms, Encoding.UTF8);
         var entry = await tis.GetNextEntryAsync(CancellationToken.None);
-        ClassicAssert.AreEqual("some entry", entry.Name);
+        Assert.Equal("some entry", entry.Name);
         var buffer = new byte[1000]; // smaller than 2 blocks
         var read0 = await tis.ReadAsync(buffer, 0, buffer.Length);
-        ClassicAssert.AreEqual(1000, read0);
-        ClassicAssert.AreEqual(entryBytes.AsSpan(0, 1000).ToArray(), buffer);
+        Assert.Equal(1000, read0);
+        Assert.Equal(entryBytes.AsSpan(0, 1000).ToArray(), buffer);
 
         var read1 = await tis.ReadAsync(buffer, 0, 5);
-        ClassicAssert.AreEqual(5, read1);
-        ClassicAssert.AreEqual(entryBytes.AsSpan(1000, 5).ToArray(), buffer.AsSpan().Slice(0, 5).ToArray());
+        Assert.Equal(5, read1);
+        Assert.Equal(entryBytes.AsSpan(1000, 5).ToArray(), buffer.AsSpan().Slice(0, 5).ToArray());
 
         var read2 = await tis.ReadAsync(buffer, 0, 20);
-        ClassicAssert.AreEqual(20, read2);
-        ClassicAssert.AreEqual(entryBytes.AsSpan(1005, 20).ToArray(), buffer.AsSpan().Slice(0, 20).ToArray());
+        Assert.Equal(20, read2);
+        Assert.Equal(entryBytes.AsSpan(1005, 20).ToArray(), buffer.AsSpan().Slice(0, 20).ToArray());
 
         var read3 = await tis.ReadAsync(buffer, 0, 975);
-        ClassicAssert.AreEqual(975, read3);
-        ClassicAssert.AreEqual(entryBytes.AsSpan(1025, 975).ToArray(), buffer.AsSpan().Slice(0, 975).ToArray());
+        Assert.Equal(975, read3);
+        Assert.Equal(entryBytes.AsSpan(1025, 975).ToArray(), buffer.AsSpan().Slice(0, 975).ToArray());
     }
 
-    [Test]
+    [Fact]
     public void ReadEmptyStreamWhenArrayPoolIsDirty()
     {
         // Rent an array with the same size as the tar buffer from the array pool
@@ -99,13 +98,14 @@ public class TarInputStreamTests
         // Return the now dirty buffer to the array pool
         ArrayPool<byte>.Shared.Return(buffer);
 
-        Assert.DoesNotThrow(() =>
+        var ex = Record.Exception(() =>
         {
             using var emptyStream = new MemoryStream(Array.Empty<byte>());
             using var tarInputStream = new TarInputStream(emptyStream, Encoding.UTF8);
             while (tarInputStream.GetNextEntry() is { } tarEntry)
             {
             }
-        }, "reading from an empty input stream should not cause an error");
+        });
+        Assert.True(ex == null, $"reading from an empty input stream should not cause an error: {ex}");
     }
 }

@@ -1,20 +1,19 @@
 using CodeBrix.Compression.GZip;
 using CodeBrix.Compression.Tar;
 using CodeBrix.Compression.Tests.TestSupport;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System;
 using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Tar;
 
 /// <summary>
 /// This class contains test cases for Tar archive handling.
 /// </summary>
-[TestFixture]
+[Trait("Category", "Tar")]
 public class TarTestSuite
 {
     private int entryCount;
@@ -24,8 +23,7 @@ public class TarTestSuite
         entryCount++;
     }
 
-    [SetUp]
-    public void Setup()
+    public TarTestSuite()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
     }
@@ -33,8 +31,7 @@ public class TarTestSuite
     /// <summary>
     /// Test that an empty archive can be created and when read has 0 entries in it
     /// </summary>
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void EmptyTar()
     {
         var ms = new MemoryStream();
@@ -44,8 +41,8 @@ public class TarTestSuite
             recordSize = tarOut.RecordSize;
         }
 
-        ClassicAssert.IsTrue(ms.GetBuffer().Length > 0, "Archive size must be > zero");
-        ClassicAssert.Zero(ms.GetBuffer().Length % recordSize, "Archive size must be a multiple of record size");
+        Assert.True(ms.GetBuffer().Length > 0, "Archive size must be > zero");
+        Assert.Equal(0, ms.GetBuffer().Length % recordSize);
 
         var ms2 = new MemoryStream();
         ms2.Write(ms.GetBuffer(), 0, ms.GetBuffer().Length);
@@ -56,15 +53,14 @@ public class TarTestSuite
             entryCount = 0;
             tarIn.ProgressMessageEvent += EntryCounter;
             tarIn.ListContents();
-            ClassicAssert.Zero(entryCount, "Expected 0 tar entries");
+            Assert.Equal(0, entryCount);
         }
     }
 
     /// <summary>
     /// Check that the tar block factor can be varied successfully.
     /// </summary>
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void BlockFactorHandling()
     {
         const int minimumBlockFactor = 1;
@@ -91,7 +87,7 @@ public class TarTestSuite
             }
 
             var tarData = ms.ToArray();
-            ClassicAssert.IsNotNull(tarData, "Data written is null");
+            Assert.NotNull(tarData);
 
             // Blocks = Header + Data Blocks + Zero block + Record trailer
             var usedBlocks = 1 + (factor * fillFactor) + 2;
@@ -99,8 +95,7 @@ public class TarTestSuite
             totalBlocks /= factor;
             totalBlocks *= factor;
 
-            ClassicAssert.AreEqual(TarBuffer.BlockSize * totalBlocks, tarData.Length, "Tar file should contain {0} blocks in length",
-                totalBlocks);
+            Assert.Equal(TarBuffer.BlockSize * totalBlocks, tarData.Length);
 
             if (usedBlocks >= totalBlocks)
             {
@@ -113,19 +108,17 @@ public class TarTestSuite
             {
                 var blockNumber = byteIndex / TarBuffer.BlockSize;
                 var offset = blockNumber % TarBuffer.BlockSize;
-                ClassicAssert.AreEqual(0, tarData[byteIndex],
-                    "Trailing block data should be null iteration {0} block {1} offset {2}  index {3}",
-                    factor, blockNumber, offset, byteIndex);
+                Assert.True(0 == tarData[byteIndex],
+                    $"Trailing block data should be null iteration {factor} block {blockNumber} offset {offset}  index {byteIndex}");
                 byteIndex += 1;
             }
         }
     }
-		
+
     /// <summary>
     /// Check that the tar trailer only contains nulls.
     /// </summary>
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void TrailerContainsNulls()
     {
         const int testBlockFactor = 3;
@@ -161,7 +154,7 @@ public class TarTestSuite
             }
 
             var tarData = ms.ToArray();
-            ClassicAssert.IsNotNull(tarData, "Data written is null");
+            Assert.NotNull(tarData);
 
             // Blocks = Header + Data Blocks + Zero block + Record trailer
             var usedBlocks = 1 + iteration + 2;
@@ -169,8 +162,7 @@ public class TarTestSuite
             totalBlocks /= testBlockFactor;
             totalBlocks *= testBlockFactor;
 
-            ClassicAssert.AreEqual(TarBuffer.BlockSize * totalBlocks, tarData.Length,
-                string.Format("Tar file should be {0} blocks in length", totalBlocks));
+            Assert.Equal(TarBuffer.BlockSize * totalBlocks, tarData.Length);
 
             if (usedBlocks < totalBlocks)
             {
@@ -180,10 +172,8 @@ public class TarTestSuite
                 {
                     var blockNumber = byteIndex / TarBuffer.BlockSize;
                     var offset = blockNumber % TarBuffer.BlockSize;
-                    ClassicAssert.AreEqual(0, tarData[byteIndex],
-                        string.Format("Trailing block data should be null iteration {0} block {1} offset {2}  index {3}",
-                            iteration,
-                            blockNumber, offset, byteIndex));
+                    Assert.True(0 == tarData[byteIndex],
+                        $"Trailing block data should be null iteration {iteration} block {blockNumber} offset {offset}  index {byteIndex}");
                     byteIndex += 1;
                 }
             }
@@ -209,15 +199,14 @@ public class TarTestSuite
         {
             var nextEntry = tarIn.GetNextEntry();
 
-            ClassicAssert.AreEqual(nextEntry.Name, name, "Name match failure");
+            Assert.Equal(nextEntry.Name, name);
         }
     }
 
     /// <summary>
     /// Check that long names are handled correctly for reading and writing.
     /// </summary>
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void LongNames()
     {
         TryLongName("11111111112222222222333333333344444444445555555555" +
@@ -254,8 +243,7 @@ public class TarTestSuite
         }
     }
 
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void ExtendedHeaderLongName()
     {
         var expectedName = "lftest-0000000000111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999";
@@ -292,98 +280,96 @@ public class TarTestSuite
         using var ms = new MemoryStream(buffer);
         using var tis = new TarInputStream(ms, nameEncoding: null);
         var entry = tis.GetNextEntry();
-			
-        ClassicAssert.IsNotNull(entry, "Entry is null");
-        ClassicAssert.IsNotNull(entry.Name, "Entry name is null");
-        ClassicAssert.AreEqual(expectedName.Length, entry.Name.Length, $"Entry name is truncated to {entry.Name.Length} bytes.");
-        ClassicAssert.AreEqual(expectedName, entry.Name, "Entry name does not match expected value");
+
+        Assert.NotNull(entry);
+        Assert.NotNull(entry.Name);
+        Assert.Equal(expectedName.Length, entry.Name.Length);
+        Assert.Equal(expectedName, entry.Name);
     }
 
     /// <summary>
     /// Test equals function for tar headers.
     /// </summary>
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void HeaderEquality()
     {
         var h1 = new TarHeader();
         var h2 = new TarHeader();
 
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.Name = "ABCDEFG";
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.Name = h1.Name;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.Mode = 33188;
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.Mode = h1.Mode;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.UserId = 654;
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.UserId = h1.UserId;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.GroupId = 654;
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.GroupId = h1.GroupId;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.Size = 654;
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.Size = h1.Size;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.ModTime = DateTime.Now;
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.ModTime = h1.ModTime;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.TypeFlag = 165;
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.TypeFlag = h1.TypeFlag;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.LinkName = "link";
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.LinkName = h1.LinkName;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.Magic = "other";
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.Magic = h1.Magic;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.Version = "1";
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.Version = h1.Version;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.UserName = "nuser";
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.UserName = h1.UserName;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.GroupName = "group";
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.GroupName = h1.GroupName;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.DevMajor = 165;
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.DevMajor = h1.DevMajor;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
 
         h1.DevMinor = 164;
-        ClassicAssert.IsFalse(h1.Equals(h2));
+        Assert.False(h1.Equals(h2));
         h2.DevMinor = h1.DevMinor;
-        ClassicAssert.IsTrue(h1.Equals(h2));
+        Assert.True(h1.Equals(h2));
     }
 
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void Checksum()
     {
         var ms = new MemoryStream();
@@ -403,7 +389,7 @@ public class TarTestSuite
         using (var tarIn = new TarInputStream(ms2, nameEncoding: null))
         {
             nextEntry = tarIn.GetNextEntry();
-            ClassicAssert.IsTrue(nextEntry.TarHeader.IsChecksumValid, "Checksum should be valid");
+            Assert.True(nextEntry.TarHeader.IsChecksumValid, "Checksum should be valid");
         }
 
         var ms3 = new MemoryStream();
@@ -414,15 +400,14 @@ public class TarTestSuite
 
         using (var tarIn = new TarInputStream(ms3, nameEncoding: null))
         {
-            Assert.Throws<TarException>(() => tarIn.GetNextEntry(), "Checksum should be invalid");
+            Assert.Throws<TarException>(() => tarIn.GetNextEntry());
         }
     }
 
     /// <summary>
     /// Check that values set are preserved when writing and reading archives.
     /// </summary>
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void ValuesPreserved()
     {
         var ms = new MemoryStream();
@@ -449,15 +434,15 @@ public class TarTestSuite
         using (var tarIn = new TarInputStream(ms2, null))
         {
             var nextEntry = tarIn.GetNextEntry();
-            ClassicAssert.AreEqual(entry.TarHeader.Checksum, nextEntry.TarHeader.Checksum, "Checksum");
+            Assert.Equal(entry.TarHeader.Checksum, nextEntry.TarHeader.Checksum);
 
-            ClassicAssert.IsTrue(nextEntry.Equals(entry), "Entries should be equal");
-            ClassicAssert.IsTrue(nextEntry.TarHeader.Equals(entry.TarHeader), "Headers should match");
+            Assert.True(nextEntry.Equals(entry), "Entries should be equal");
+            Assert.True(nextEntry.TarHeader.Equals(entry.TarHeader), "Headers should match");
 
             // Tar only stores seconds
             var truncatedTime = new DateTime(modTime.Year, modTime.Month, modTime.Day,
                 modTime.Hour, modTime.Minute, modTime.Second);
-            ClassicAssert.AreEqual(truncatedTime, nextEntry.ModTime, "Modtimes should match");
+            Assert.Equal(truncatedTime, nextEntry.ModTime);
 
             entryCount = 0;
             while (nextEntry != null)
@@ -466,118 +451,86 @@ public class TarTestSuite
                 nextEntry = tarIn.GetNextEntry();
             }
 
-            ClassicAssert.AreEqual(1, entryCount, "Expected 1 entry");
+            Assert.Equal(1, entryCount);
         }
     }
 
     /// <summary>
     /// Check invalid mod times are detected
     /// </summary>
-    [Test]
-    [Category("Tar")]
-    //[ExpectedException(typeof(ArgumentOutOfRangeException))]
+    [Fact]
     public void InvalidModTime()
     {
         var e = TarEntry.CreateTarEntry("test");
-        //e.ModTime = DateTime.MinValue;
-
-        Assert.That(() => e.ModTime = DateTime.MinValue,
-            Throws.TypeOf<ArgumentOutOfRangeException>());
+        Assert.Throws<ArgumentOutOfRangeException>(() => e.ModTime = DateTime.MinValue);
     }
 
     /// <summary>
     /// Check invalid sizes are detected
     /// </summary>
-    [Test]
-    [Category("Tar")]
-    //[ExpectedException(typeof(ArgumentOutOfRangeException))]
+    [Fact]
     public void InvalidSize()
     {
         var e = TarEntry.CreateTarEntry("test");
-        //e.Size = -6;
-
-        Assert.That(() => e.Size = -6,
-            Throws.TypeOf<ArgumentOutOfRangeException>());
+        Assert.Throws<ArgumentOutOfRangeException>(() => e.Size = -6);
     }
 
     /// <summary>
     /// Check invalid names are detected
     /// </summary>
-    [Test]
-    [Category("Tar")]
-    //[ExpectedException(typeof(ArgumentNullException))]
+    [Fact]
     public void InvalidName()
     {
         var e = TarEntry.CreateTarEntry("test");
-        //e.Name = null;
-
-        Assert.That(() => e.Name = null,
-            Throws.TypeOf<ArgumentNullException>());
+        Assert.Throws<ArgumentNullException>(() => e.Name = null);
     }
 
     /// <summary>
     /// Check setting user and group names.
     /// </summary>
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void UserAndGroupNames()
     {
         var e = TarEntry.CreateTarEntry("test");
         e.UserName = null;
-        ClassicAssert.IsNotNull(e.UserName, "Name set to OS default");
+        Assert.NotNull(e.UserName);
         e.UserName = "";
-        ClassicAssert.AreEqual(0, e.UserName.Length, "Empty name allowed");
+        Assert.Equal(0, e.UserName.Length);
         e.GroupName = null;
-        ClassicAssert.AreEqual("None", e.GroupName, "default group name is None");
+        Assert.Equal("None", e.GroupName);
     }
 
     /// <summary>
     /// Check invalid magic values are detected
     /// </summary>
-    [Test]
-    [Category("Tar")]
-    //[ExpectedException(typeof(ArgumentNullException))]
+    [Fact]
     public void InvalidMagic()
     {
         var e = TarEntry.CreateTarEntry("test");
-        //e.TarHeader.Magic = null;
-
-        Assert.That(() => e.TarHeader.Magic = null,
-            Throws.TypeOf<ArgumentNullException>());
+        Assert.Throws<ArgumentNullException>(() => e.TarHeader.Magic = null);
     }
 
     /// <summary>
     /// Check invalid link names are detected
     /// </summary>
-    [Test]
-    [Category("Tar")]
-    //[ExpectedException(typeof(ArgumentNullException))]
+    [Fact]
     public void InvalidLinkName()
     {
         var e = TarEntry.CreateTarEntry("test");
-        //e.TarHeader.LinkName = null;
-
-        Assert.That(() => e.TarHeader.LinkName = null,
-            Throws.TypeOf<ArgumentNullException>());
+        Assert.Throws<ArgumentNullException>(() => e.TarHeader.LinkName = null);
     }
 
     /// <summary>
     /// Check invalid version names are detected
     /// </summary>
-    [Test]
-    [Category("Tar")]
-    //[ExpectedException(typeof(ArgumentNullException))]
+    [Fact]
     public void InvalidVersionName()
     {
         var e = TarEntry.CreateTarEntry("test");
-        //e.TarHeader.Version = null;
-
-        Assert.That(() => e.TarHeader.Version = null,
-            Throws.TypeOf<ArgumentNullException>());
+        Assert.Throws<ArgumentNullException>(() => e.TarHeader.Version = null);
     }
 
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void CloningAndUniqueness()
     {
         // Partial test of cloning for TarHeader and TarEntry
@@ -595,88 +548,85 @@ public class TarTestSuite
 
         var d = (TarEntry)e.Clone();
 
-        ClassicAssert.AreEqual(d.File, e.File);
-        ClassicAssert.AreEqual(d.GroupId, e.GroupId);
-        ClassicAssert.AreEqual(d.GroupName, e.GroupName);
-        ClassicAssert.AreEqual(d.IsDirectory, e.IsDirectory);
-        ClassicAssert.AreEqual(d.ModTime, e.ModTime);
-        ClassicAssert.AreEqual(d.Size, e.Size);
+        Assert.Equal(d.File, e.File);
+        Assert.Equal(d.GroupId, e.GroupId);
+        Assert.Equal(d.GroupName, e.GroupName);
+        Assert.Equal(d.IsDirectory, e.IsDirectory);
+        Assert.Equal(d.ModTime, e.ModTime);
+        Assert.Equal(d.Size, e.Size);
 
         var headerD = d.TarHeader;
 
-        ClassicAssert.AreEqual(headerE.Checksum, headerD.Checksum);
-        ClassicAssert.AreEqual(headerE.LinkName, headerD.LinkName);
+        Assert.Equal(headerE.Checksum, headerD.Checksum);
+        Assert.Equal(headerE.LinkName, headerD.LinkName);
 
-        ClassicAssert.AreEqual(99, headerD.DevMajor);
-        ClassicAssert.AreEqual(98, headerD.DevMinor);
+        Assert.Equal(99, headerD.DevMajor);
+        Assert.Equal(98, headerD.DevMinor);
 
-        ClassicAssert.AreEqual("LanceLink", headerD.LinkName);
+        Assert.Equal("LanceLink", headerD.LinkName);
 
         var entryf = new TarEntry(headerD);
 
         headerD.LinkName = "Something different";
 
-        ClassicAssert.AreNotEqual(headerD.LinkName, entryf.TarHeader.LinkName, "Entry headers should be unique");
+        Assert.NotEqual(headerD.LinkName, entryf.TarHeader.LinkName);
     }
 
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void OutputStreamOwnership()
     {
         var memStream = new TrackedMemoryStream();
         var s = new TarOutputStream(memStream, null);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.Close();
 
-        ClassicAssert.IsTrue(memStream.IsClosed, "Should be closed after parent owner close");
-        ClassicAssert.IsTrue(memStream.IsDisposed, "Should be disposed after parent owner close");
+        Assert.True(memStream.IsClosed, "Should be closed after parent owner close");
+        Assert.True(memStream.IsDisposed, "Should be disposed after parent owner close");
 
         memStream = new TrackedMemoryStream();
         s = new TarOutputStream(memStream, null);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.IsStreamOwner = false;
         s.Close();
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Should not be closed after parent owner close");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Should not be disposed after parent owner close");
+        Assert.False(memStream.IsClosed, "Should not be closed after parent owner close");
+        Assert.False(memStream.IsDisposed, "Should not be disposed after parent owner close");
     }
 
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void InputStreamOwnership()
     {
         var memStream = new TrackedMemoryStream();
         var s = new TarInputStream(memStream, null);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.Close();
 
-        ClassicAssert.IsTrue(memStream.IsClosed, "Should be closed after parent owner close");
-        ClassicAssert.IsTrue(memStream.IsDisposed, "Should be disposed after parent owner close");
+        Assert.True(memStream.IsClosed, "Should be closed after parent owner close");
+        Assert.True(memStream.IsDisposed, "Should be disposed after parent owner close");
 
         memStream = new TrackedMemoryStream();
         s = new TarInputStream(memStream, null);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.IsStreamOwner = false;
         s.Close();
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Should not be closed after parent owner close");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Should not be disposed after parent owner close");
+        Assert.False(memStream.IsClosed, "Should not be closed after parent owner close");
+        Assert.False(memStream.IsDisposed, "Should not be disposed after parent owner close");
     }
 
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void EndBlockHandling()
     {
         var dummySize = 70145;
@@ -711,13 +661,11 @@ public class TarTestSuite
         Console.WriteLine($"Output count: {outCount}");
         Console.WriteLine($"Input count: {inCount}");
 
-        ClassicAssert.AreEqual(inCount, outCount, "Bytes read and bytes written should be equal");
+        Assert.Equal(inCount, outCount);
     }
 
-    [Test]
-    [Category("Tar")]
-    [Category("Performance")]
-    [Explicit("Long Running")]
+    [Fact(Explicit = true, Skip = "Long Running")]
+    [Trait("Category", "Performance")]
     public void WriteThroughput()
     {
         const string entryName = "LargeTarEntry";
@@ -738,10 +686,8 @@ public class TarTestSuite
             });
     }
 
-    [Test]
-    [Category("Tar")]
-    [Category("Performance")]
-    [Explicit("Long Running")]
+    [Fact(Explicit = true, Skip = "Long Running")]
+    [Trait("Category", "Performance")]
     public void SingleLargeEntry()
     {
         const string entryName = "LargeTarEntry";
@@ -754,7 +700,7 @@ public class TarTestSuite
                 var tis = new TarInputStream(bs, null);
                 var entry = tis.GetNextEntry();
 
-                ClassicAssert.AreEqual(entryName, entry.Name);
+                Assert.Equal(entryName, entry.Name);
                 return tis;
             },
             output: bs =>
@@ -775,8 +721,7 @@ public class TarTestSuite
     }
 
     // Test for corruption issue described @ https://github.com/icsharpcode/SharpZipLib/issues/321
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void ExtractingCorruptTarShouldntLeakFiles()
     {
         using var memoryStream = new MemoryStream();
@@ -808,16 +753,18 @@ public class TarTestSuite
                 tarIn.IsStreamOwner = false;
                 Assert.Throws<CompressionExceptionBase>(() => tarIn.ExtractContents(tempDir));
             }
-				
+
             // Try to remove the output directory to check if any file handles are still being held
-            Assert.DoesNotThrow(() => tempDir.Delete());
-				
-            Assert.That(tempDir.Exists, Is.False, "Temporary folder should have been removed");
+            var ex = Record.Exception(() => tempDir.Delete());
+            Assert.Null(ex);
+
+            Assert.False(tempDir.Exists, "Temporary folder should have been removed");
         }
     }
-    [TestCase(10, "utf-8")]
-    [TestCase(10, "shift-jis")]
-    [Category("Tar")]
+
+    [Theory]
+    [InlineData(10, "utf-8")]
+    [InlineData(10, "shift-jis")]
     public void ParseHeaderWithEncoding(int length, string encodingName)
     {
         // U+3042 is Japanese Hiragana
@@ -831,20 +778,21 @@ public class TarTestSuite
         header.WriteHeader(headerbytes, enc);
         var reparseHeader = new TarHeader();
         reparseHeader.ParseBuffer(headerbytes, enc);
-        ClassicAssert.AreEqual(name, reparseHeader.Name);
+        Assert.Equal(name, reparseHeader.Name);
         // top 100 bytes are name field in tar header
         for (var i = 0; i < encodedName.Length; i++)
         {
-            ClassicAssert.AreEqual(encodedName[i], headerbytes[i]);
+            Assert.Equal(encodedName[i], headerbytes[i]);
         }
     }
-    [TestCase(1, "utf-8")]
-    [TestCase(100, "utf-8")]
-    [TestCase(128, "utf-8")]
-    [TestCase(1, "shift-jis")]
-    [TestCase(100, "shift-jis")]
-    [TestCase(128, "shift-jis")]
-    [Category("Tar")]
+
+    [Theory]
+    [InlineData(1, "utf-8")]
+    [InlineData(100, "utf-8")]
+    [InlineData(128, "utf-8")]
+    [InlineData(1, "shift-jis")]
+    [InlineData(100, "shift-jis")]
+    [InlineData(128, "shift-jis")]
     public async Task StreamWithJapaneseNameAsync(int length, string encodingName)
     {
         // U+3042 is Japanese Hiragana
@@ -866,9 +814,9 @@ public class TarTestSuite
         {
             var buf = new byte[64];
             var entry = await inputStream.GetNextEntryAsync(CancellationToken.None);
-            ClassicAssert.AreEqual(entryName, entry.Name);
+            Assert.Equal(entryName, entry.Name);
             var bytesread = await inputStream.ReadAsync(buf, 0, buf.Length, CancellationToken.None);
-            ClassicAssert.AreEqual(data.Length, bytesread);
+            Assert.Equal(data.Length, bytesread);
         }
         File.WriteAllBytes(Path.Combine(Path.GetTempPath(), $"jpnametest_{length}_{encodingName}.tar"), memoryStream.ToArray());
     }
@@ -877,8 +825,7 @@ public class TarTestSuite
     /// Then extracts it and compares the two folders. This used to fail on unix due to issues with root folder handling
     /// in the tar archive.
     /// </summary>
-    [Test]
-    [Category("Tar")]
+    [Fact]
     public void RootPathIsRespected()
     {
         using var extractDirectory = new TempDir();
@@ -908,9 +855,8 @@ public class TarTestSuite
         foreach (var checkFile in expectationDirectory.GetFiles("", SearchOption.AllDirectories))
         {
             var relativePath = checkFile.FullName.Substring(expectationDirectory.FullName.Length + 1);
-            FileAssert.Exists(Path.Combine(extractDirectory.FullName, relativePath));
-            Assert.That(File.ReadAllBytes(Path.Combine(extractDirectory.FullName, relativePath)),
-                Is.EqualTo(File.ReadAllBytes(checkFile.FullName)));
+            Assert.True(File.Exists(Path.Combine(extractDirectory.FullName, relativePath)));
+            Assert.Equal(File.ReadAllBytes(checkFile.FullName), File.ReadAllBytes(Path.Combine(extractDirectory.FullName, relativePath)));
         }
     }
 }

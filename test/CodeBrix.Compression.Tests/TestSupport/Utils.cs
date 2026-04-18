@@ -1,9 +1,9 @@
-using NUnit.Framework.Legacy;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.TestSupport;
 
@@ -36,10 +36,10 @@ public static class Utils
             throw new ArgumentNullException(nameof(b));
         }
 
-        ClassicAssert.AreEqual(a.Length, b.Length);
+        Assert.Equal(a.Length, b.Length);
         for (var i = 0; i < a.Length; ++i)
         {
-            ClassicAssert.AreEqual(a[i], b[i]);
+            Assert.Equal(a[i], b[i]);
         }
     }
 

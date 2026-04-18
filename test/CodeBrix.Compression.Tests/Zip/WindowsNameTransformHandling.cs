@@ -1,23 +1,21 @@
-﻿using CodeBrix.Compression.Core;
+using CodeBrix.Compression.Core;
 using CodeBrix.Compression.Zip;
-using NUnit.Framework;
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Zip;
 
-[TestFixture]
 public class WindowsNameTransformHandling : TransformBase
 {
-    [OneTimeSetUp]
-    public void TestInit() {
+    public WindowsNameTransformHandling()
+    {
         if (Path.DirectorySeparatorChar != '\\') {
-            Assert.Inconclusive("WindowsNameTransform will not work on platforms not using '\\' directory separators");
+            Assert.Skip("WindowsNameTransform will not work on platforms not using '\\' directory separators");
         }
     }
 
-    [Test]
+    [Fact]
     public void BasicFiles()
     {
         var wnt = new WindowsNameTransform();
@@ -30,7 +28,7 @@ public class WindowsNameTransformHandling : TransformBase
         TestFile(wnt, @"\\unc\share\/zebidi\/and\/dylan", Path.Combine("zebidi", "and", "dylan"));
     }
 
-    [Test]
+    [Fact]
     public void Replacement()
     {
         var wnt = new WindowsNameTransform();
@@ -40,7 +38,7 @@ public class WindowsNameTransformHandling : TransformBase
         TestFile(wnt, "c\\/>", Path.Combine("c", "_"));
     }
 
-    [Test]
+    [Fact]
     public void NameTooLong()
     {
         var wnt = new WindowsNameTransform();
@@ -55,7 +53,7 @@ public class WindowsNameTransformHandling : TransformBase
         }
     }
 
-    [Test]
+    [Fact]
     public void LengthBoundaryOk()
     {
         var wnt = new WindowsNameTransform();
@@ -70,7 +68,7 @@ public class WindowsNameTransformHandling : TransformBase
         }
     }
 
-    [Test]
+    [Fact]
     public void ReplacementChecking()
     {
         var wnt = new WindowsNameTransform();
@@ -120,7 +118,7 @@ public class WindowsNameTransformHandling : TransformBase
         }
     }
 
-    [Test]
+    [Fact]
     public void BasicDirectories()
     {
         var wnt = new WindowsNameTransform();
@@ -142,7 +140,7 @@ public class WindowsNameTransformHandling : TransformBase
         TestDirectory(wnt, "talofa", Path.Combine(BaseDir2, "talofa"));
     }
 
-    [Test]
+    [Fact]
     public void ParentTraversalBlockedByDefault()
     {
         var baseDir = Path.Combine("C:\\", "ExtractDir");
@@ -153,13 +151,15 @@ public class WindowsNameTransformHandling : TransformBase
         Assert.Throws<InvalidNameException>(() => wnt.TransformFile("subdir/../../escape.txt"));
     }
 
-    [Test]
+    [Fact]
     public void ParentTraversalAllowedWhenExplicitlyEnabled()
     {
         var baseDir = Path.Combine("C:\\", "ExtractDir");
         var wnt = new WindowsNameTransform(baseDir, allowParentTraversal: true);
 
-        Assert.DoesNotThrow(() => wnt.TransformFile("../escape.txt"));
-        Assert.DoesNotThrow(() => wnt.TransformFile("subdir/../../escape.txt"));
+        var ex1 = Record.Exception(() => wnt.TransformFile("../escape.txt"));
+        Assert.Null(ex1);
+        var ex2 = Record.Exception(() => wnt.TransformFile("subdir/../../escape.txt"));
+        Assert.Null(ex2);
     }
 }

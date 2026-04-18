@@ -1,20 +1,18 @@
 using CodeBrix.Compression.Tests.TestSupport;
 using CodeBrix.Compression.Zip;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System;
 using System.IO;
 using System.Security;
 using System.Text;
 using System.Text.Json;
-using Does = CodeBrix.Compression.Tests.TestSupport.Does;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Zip;
 
 /// <summary>
 /// This class contains test cases for Zip compression and decompression
 /// </summary>
-[TestFixture]
+[Trait("Category", "Zip")]
 public class GeneralHandling : ZipBase
 {
     private void ExerciseZip(CompressionMethod method, int compressionLevel,
@@ -37,7 +35,7 @@ public class GeneralHandling : ZipBase
 
         if ((entry2.Flags & 8) == 0)
         {
-            ClassicAssert.AreEqual(size, entry2.Size, "Entry size invalid");
+            Assert.Equal(size, entry2.Size);
         }
 
         var currentIndex = 0;
@@ -58,13 +56,13 @@ public class GeneralHandling : ZipBase
             }
         }
 
-        ClassicAssert.AreEqual(currentIndex, size, "Original and decompressed data different sizes");
+        Assert.Equal(currentIndex, size);
 
         if (originalData != null)
         {
             for (var i = 0; i < originalData.Length; ++i)
             {
-                ClassicAssert.AreEqual(decompressedData[i], originalData[i], "Decompressed data doesnt match original, compression level: " + compressionLevel);
+                Assert.Equal(decompressedData[i], originalData[i]);
             }
         }
     }
@@ -73,9 +71,7 @@ public class GeneralHandling : ZipBase
     /// Invalid passwords should be detected early if possible, seekable stream
     /// Note: Have a 1/255 chance of failing due to CRC collision (hence retried once)
     /// </summary>
-    [Test]
-    [Category("Zip")]
-    [Retry(2)]
+    [Fact]
     public void InvalidPasswordSeekable()
     {
         byte[] originalData = null;
@@ -110,8 +106,7 @@ public class GeneralHandling : ZipBase
     /// Check that GetNextEntry can handle the situation where part of the entry data has been read
     /// before the call is made.  ZipInputStream.CloseEntry wasnt handling this at all.
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void ExerciseGetNextEntry()
     {
         var compressedData = MakeInMemoryZip(
@@ -142,9 +137,7 @@ public class GeneralHandling : ZipBase
     /// Invalid passwords should be detected early if possible, non seekable stream
     /// Note: Have a 1/255 chance of failing due to CRC collision (hence retried once)
     /// </summary>
-    [Test]
-    [Category("Zip")]
-    [Retry(2)]
+    [Fact]
     public void InvalidPasswordNonSeekable()
     {
         byte[] originalData = null;
@@ -178,41 +171,32 @@ public class GeneralHandling : ZipBase
     /// <summary>
     /// Adding an entry after the stream has Finished should fail
     /// </summary>
-    [Test]
-    [Category("Zip")]
-    //[ExpectedException(typeof(InvalidOperationException))]
+    [Fact]
     public void AddEntryAfterFinish()
     {
         var ms = new MemoryStream();
         var s = new ZipOutputStream(ms);
         s.Finish();
-        //s.PutNextEntry(new ZipEntry("dummyfile.tst"));
 
-        Assert.That(() => s.PutNextEntry(new ZipEntry("dummyfile.tst")),
-            Throws.TypeOf<InvalidOperationException>());
+        Assert.Throws<InvalidOperationException>(() => s.PutNextEntry(new ZipEntry("dummyfile.tst")));
     }
 
     /// <summary>
     /// Test setting file commment to a value that is too long
     /// </summary>
-    [Test]
-    [Category("Zip")]
-    //[ExpectedException(typeof(ArgumentOutOfRangeException))]
+    [Fact]
     public void SetCommentOversize()
     {
         var ms = new MemoryStream();
         var s = new ZipOutputStream(ms);
-        //s.SetComment(new String('A', 65536));
 
-        Assert.That(() => s.SetComment(new String('A', 65536)),
-            Throws.TypeOf<ArgumentOutOfRangeException>());
+        Assert.Throws<ArgumentOutOfRangeException>(() => s.SetComment(new String('A', 65536)));
     }
 
     /// <summary>
     /// Check that simply closing ZipOutputStream finishes the zip correctly
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void CloseOnlyHandled()
     {
         var ms = new MemoryStream();
@@ -220,15 +204,14 @@ public class GeneralHandling : ZipBase
         s.PutNextEntry(new ZipEntry("dummyfile.tst"));
         s.Close();
 
-        ClassicAssert.IsTrue(s.IsFinished, "Output stream should be finished");
+        Assert.True(s.IsFinished, "Output stream should be finished");
     }
 
     /// <summary>
     /// Basic compress/decompress test, no encryption, size is important here as its big enough
     /// to force multiple write to output which was a problem...
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void BasicDeflated()
     {
         for (var i = 0; i <= 9; ++i)
@@ -241,8 +224,7 @@ public class GeneralHandling : ZipBase
     /// Basic compress/decompress test, no encryption, size is important here as its big enough
     /// to force multiple write to output which was a problem...
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void BasicDeflatedNonSeekable()
     {
         for (var i = 0; i <= 9; ++i)
@@ -254,8 +236,7 @@ public class GeneralHandling : ZipBase
     /// <summary>
     /// Basic stored file test, no encryption.
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void BasicStored()
     {
         ExerciseZip(CompressionMethod.Stored, 0, 50000, null, true);
@@ -265,17 +246,15 @@ public class GeneralHandling : ZipBase
     /// Basic stored file test, no encryption, non seekable output
     /// NOTE this gets converted to deflate level 0
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void BasicStoredNonSeekable()
     {
         ExerciseZip(CompressionMethod.Stored, 0, 50000, null, false);
     }
 
-    [Test]
-    [Category("Zip")]
-    [TestCase(21348, null)]
-    [TestCase(24692, "Mabutu")]
+    [Theory]
+    [InlineData(21348, null)]
+    [InlineData(24692, "Mabutu")]
     public void StoredNonSeekableKnownSizeNoCrc(int targetSize, string password)
     {
         // This cannot be stored directly as the crc is not known.
@@ -298,8 +277,8 @@ public class GeneralHandling : ZipBase
 
             outStream.PutNextEntry(entry);
 
-            ClassicAssert.AreEqual(CompressionMethod.Deflated, entry.CompressionMethod, "Entry should be deflated");
-            ClassicAssert.AreEqual(-1, entry.CompressedSize, "Compressed size should be known");
+            Assert.Equal(CompressionMethod.Deflated, entry.CompressionMethod);
+            Assert.Equal(-1, entry.CompressedSize);
 
             var original = Utils.GetDummyBytes(targetSize);
 
@@ -315,15 +294,14 @@ public class GeneralHandling : ZipBase
                 index += count;
             }
         }
-        Assert.That(ms.ToArray(), Does.PassTestArchive(password));
+        ZipTesting.AssertPassesTestArchive(ms.ToArray(), password);
     }
 
     /// <summary>
     /// Basic compress/decompress test, with encryption, size is important here as its big enough
     /// to force multiple writes to output which was a problem...
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void BasicDeflatedEncrypted()
     {
         for (var i = 0; i <= 9; ++i)
@@ -336,8 +314,7 @@ public class GeneralHandling : ZipBase
     /// Basic compress/decompress test, with encryption, size is important here as its big enough
     /// to force multiple write to output which was a problem...
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void BasicDeflatedEncryptedNonSeekable()
     {
         for (var i = 0; i <= 9; ++i)
@@ -346,8 +323,7 @@ public class GeneralHandling : ZipBase
         }
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void SkipEncryptedEntriesWithoutSettingPassword()
     {
         var compressedData = MakeInMemoryZip(true,
@@ -370,8 +346,7 @@ public class GeneralHandling : ZipBase
         inStream.Close();
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void MixedEncryptedAndPlain()
     {
         var compressedData = MakeInMemoryZip(true,
@@ -411,8 +386,7 @@ public class GeneralHandling : ZipBase
     /// <summary>
     /// Basic stored file test, with encryption.
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void BasicStoredEncrypted()
     {
         ExerciseZip(CompressionMethod.Stored, compressionLevel: 0, size: 50000, "Rosebud", canSeek: true);
@@ -422,8 +396,7 @@ public class GeneralHandling : ZipBase
     /// Basic stored file test, with encryption, non seekable output.
     /// NOTE this gets converted deflate level 0
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void BasicStoredEncryptedNonSeekable()
     {
         ExerciseZip(CompressionMethod.Stored, compressionLevel: 0, size: 50000, "Rosebud", canSeek: false);
@@ -433,26 +406,25 @@ public class GeneralHandling : ZipBase
     /// Check that when the output stream cannot seek that requests for stored
     /// are in fact converted to defalted level 0
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void StoredNonSeekableConvertToDeflate()
     {
         var ms = new MemoryStreamWithoutSeek();
 
         var outStream = new ZipOutputStream(ms);
         outStream.SetLevel(8);
-        ClassicAssert.AreEqual(8, outStream.GetLevel(), "Compression level invalid");
+        Assert.Equal(8, outStream.GetLevel());
 
         var entry = new ZipEntry("1.tst");
         entry.CompressionMethod = CompressionMethod.Stored;
         outStream.PutNextEntry(entry);
-        ClassicAssert.AreEqual(0, outStream.GetLevel(), "Compression level invalid");
+        Assert.Equal(0, outStream.GetLevel());
 
         Utils.WriteDummyData(outStream, 100);
         entry = new ZipEntry("2.tst");
         entry.CompressionMethod = CompressionMethod.Deflated;
         outStream.PutNextEntry(entry);
-        ClassicAssert.AreEqual(8, outStream.GetLevel(), "Compression level invalid");
+        Assert.Equal(8, outStream.GetLevel());
         Utils.WriteDummyData(outStream, 100);
 
         outStream.Close();
@@ -461,8 +433,7 @@ public class GeneralHandling : ZipBase
     /// <summary>
     /// Check that Unicode filename support works.
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void Stream_UnicodeEntries()
     {
         var ms = new MemoryStream();
@@ -479,17 +450,16 @@ public class GeneralHandling : ZipBase
 
         using var zis = new ZipInputStream(ms);
         var ze = zis.GetNextEntry();
-        ClassicAssert.AreEqual(sampleName, ze.Name, "Expected name to match original");
-        ClassicAssert.IsTrue(ze.IsUnicodeText, "Expected IsUnicodeText flag to be set");
+        Assert.Equal(sampleName, ze.Name);
+        Assert.True(ze.IsUnicodeText, "Expected IsUnicodeText flag to be set");
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
+    [Fact]
+    [Trait("Category", "CreatesTempFile")]
     public void PartialStreamClosing()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         if (tempFile != null)
         {
@@ -521,7 +491,7 @@ public class GeneralHandling : ZipBase
         }
 
         using var zFile = new ZipFile(tempFile);
-        ClassicAssert.AreEqual(targetFiles, zFile.Count);
+        Assert.Equal(targetFiles, zFile.Count);
         var readData = new byte[BlockSize];
         int readIndex;
         foreach (var ze in zFile)
@@ -535,15 +505,12 @@ public class GeneralHandling : ZipBase
 
             for (var ii = 0; ii < BlockSize; ++ii)
             {
-                ClassicAssert.AreEqual(data[ii], readData[ii]);
+                Assert.Equal(data[ii], readData[ii]);
             }
         }
         zFile.Close();
     }
 
-    //      [Test]
-    //      [Category("Zip")]
-    //      [Category("CreatesTempFile")]
     public void TestLargeZipFile()
     {
         var tempFile = @"g:\\tmp";
@@ -551,22 +518,18 @@ public class GeneralHandling : ZipBase
         TestLargeZip(tempFile, 8100);
     }
 
-    //      [Test]
-    //      [Category("Zip")]
-    //      [Category("CreatesTempFile")]
     public void MakeLargeZipFile()
     {
         string tempFile = null;
         try
         {
-            //            tempFile = Path.GetTempPath();
             tempFile = @"g:\\tmp";
         }
         catch (SecurityException)
         {
         }
 
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         const int blockSize = 4096;
 
@@ -582,7 +545,6 @@ public class GeneralHandling : ZipBase
         Console.WriteLine("Starting at {0}", DateTime.Now);
         try
         {
-            //               MakeZipFile(tempFile, new String[] {"1", "2" }, int.MaxValue, "C1");
             using var fs = File.Create(tempFile);
             var zOut = new ZipOutputStream(fs);
             zOut.SetLevel(4);
@@ -606,65 +568,27 @@ public class GeneralHandling : ZipBase
         finally
         {
             Console.WriteLine("Starting at {0}", DateTime.Now);
-            //               File.Delete(tempFile);
         }
     }
-
-    /*
-
-    /// <summary>
-    /// Test for handling of zero lengths in compression using a formatter which
-    /// will request reads of zero length...
-    /// </summary>
-    [Test]
-    [Category("Zip")]
-    [Ignore("With ArraySegment<byte> for crc checking, this test doesn't throw an exception. Not sure if it's needed.")]
-    public void SerializedObjectZeroLength()
-    {
-        var exception = false;
-
-        object data = new byte[0];
-        // Thisa wont be zero length here due to serialisation.
-        try
-        {
-            var zipped = ZipZeroLength(data);
-
-            var o = UnZipZeroLength(zipped);
-
-            var returned = o as byte[];
-
-            ClassicAssert.IsNotNull(returned, "Expected a byte[]");
-            ClassicAssert.AreEqual(0, returned.Length);
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            exception = true;
-        }
-
-        ClassicAssert.IsTrue(exception, "Passing an offset greater than or equal to buffer.Length should cause an ArgumentOutOfRangeException");
-    }
-
-    */
 
     /// <summary>
     /// Test for handling of serialized reference and value objects.
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void SerializedObject()
     {
         var sampleDateTime = new DateTime(1853, 8, 26);
         var zipped = ZipZeroLength(sampleDateTime);
         var returnedDateTime = UnZipZeroLength<DateTime>(zipped);
 
-        ClassicAssert.AreEqual(sampleDateTime, returnedDateTime);
+        Assert.Equal(sampleDateTime, returnedDateTime);
 
         var sampleString = "Mary had a giant cat it ears were green and smelly";
         zipped = ZipZeroLength(sampleString);
 
         var returnedString = UnZipZeroLength<string>(zipped);
 
-        ClassicAssert.AreEqual(sampleString, returnedString);
+        Assert.Equal(sampleString, returnedString);
     }
 
     private byte[] ZipZeroLength(object data)
@@ -712,21 +636,19 @@ public class GeneralHandling : ZipBase
         return result;
     }
 
-    [Test]
-    [Category("Zip")]
-    [TestCase("Hello")]
-    [TestCase("a/b/c/d/e/f/g/h/SomethingLikeAnArchiveName.txt")]
+    [Theory]
+    [InlineData("Hello")]
+    [InlineData("a/b/c/d/e/f/g/h/SomethingLikeAnArchiveName.txt")]
     public void LegacyNameConversion(string name)
     {
         var encoding = StringCodec.Default.ZipEncoding(false);
         var intermediate = encoding.GetBytes(name);
         var final = encoding.GetString(intermediate);
 
-        ClassicAssert.AreEqual(name, final, "Expected identical result");
+        Assert.Equal(name, final);
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void UnicodeNameConversion()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -737,69 +659,16 @@ public class GeneralHandling : ZipBase
         var rawData = Encoding.ASCII.GetBytes(sample);
 
         var converted = codec.LegacyEncoding.GetString(rawData);
-        ClassicAssert.AreEqual(sample, converted);
+        Assert.Equal(sample, converted);
 
         converted = codec.ZipInputEncoding(GeneralBitFlags.UnicodeText).GetString(rawData);
-        ClassicAssert.AreEqual(sample, converted);
+        Assert.Equal(sample, converted);
 
         // This time use some greek characters
         sample = "\u03A5\u03d5\u03a3";
         rawData = Encoding.UTF8.GetBytes(sample);
 
         converted = codec.ZipInputEncoding(GeneralBitFlags.UnicodeText).GetString(rawData);
-        ClassicAssert.AreEqual(sample, converted);
+        Assert.Equal(sample, converted);
     }
-
-    /*
-
-    /// <summary>
-    /// Regression test for problem where the password check would fail for an archive whose
-    /// date was updated from the extra data.
-    /// This applies to archives where the crc wasnt know at the time of encryption.
-    /// The date of the entry is used in its place.
-    /// </summary>
-    [Test]
-    [Category("Zip")]
-    [Ignore("at commit 60831547c868cc56d43f24473f7d5f2cc51fb754 this unit test passed but the behavior of ZipEntry.DateTime has changed completely ever since. Not sure if this unit test is still needed.")]
-    public void PasswordCheckingWithDateInExtraData()
-    {
-        var ms = new MemoryStream();
-        var checkTime = new DateTimeOffset(2010, 10, 16, 0, 3, 28, new TimeSpan(1, 0, 0));
-
-        using (ZipOutputStream zos = new ZipOutputStream(ms))
-        {
-            zos.IsStreamOwner = false;
-            zos.Password = "secret";
-            var ze = new ZipEntry("uno");
-            ze.DateTime = new DateTime(1998, 6, 5, 4, 3, 2);
-
-            var zed = new ZipExtraData();
-
-            zed.StartNewEntry();
-
-            zed.AddData(1);
-
-            TimeSpan delta = checkTime.UtcDateTime - new DateTime(1970, 1, 1, 0, 0, 0).ToUniversalTime();
-            var seconds = (int)delta.TotalSeconds;
-            zed.AddLeInt(seconds);
-            zed.AddNewEntry(0x5455);
-
-            ze.ExtraData = zed.GetEntryData();
-            zos.PutNextEntry(ze);
-            zos.WriteByte(54);
-        }
-
-        ms.Position = 0;
-        using (ZipInputStream zis = new ZipInputStream(ms))
-        {
-            zis.Password = "secret";
-            ZipEntry uno = zis.GetNextEntry();
-            var theByte = (byte)zis.ReadByte();
-            ClassicAssert.AreEqual(54, theByte);
-            ClassicAssert.AreEqual(-1, zis.ReadByte()); // eof
-            ClassicAssert.AreEqual(checkTime.DateTime, uno.DateTime);
-        }
-    }
-
-    */
 }

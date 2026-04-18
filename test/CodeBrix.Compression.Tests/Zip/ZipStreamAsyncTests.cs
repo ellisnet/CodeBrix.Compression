@@ -1,22 +1,21 @@
-﻿using System.IO;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using CodeBrix.Compression.Zip;
 using CodeBrix.Compression.Tests.TestSupport;
-using NUnit.Framework;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Zip;
 
-[TestFixture]
+[Trait("Category", "Zip")]
+[Trait("Category", "Async")]
 public class ZipStreamAsyncTests
 {
-    [Test]
-    [Category("Zip")]
-    [Category("Async")]
+    [Fact]
     public async Task WriteZipStreamUsingAsync()
     {
         await using var ms = new MemoryStream();
-			
+
         await using (var outStream = new ZipOutputStream(ms){IsStreamOwner = false})
         {
             await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"));
@@ -29,9 +28,7 @@ public class ZipStreamAsyncTests
         ZipTesting.AssertValidZip(ms);
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("Async")]
+    [Fact]
     public async Task WriteZipStreamAsync ()
     {
         using var ms = new MemoryStream();
@@ -49,11 +46,9 @@ public class ZipStreamAsyncTests
 
         ZipTesting.AssertValidZip(ms);
     }
-		
-		
-    [Test]
-    [Category("Zip")]
-    [Category("Async")]
+
+
+    [Fact]
     public async Task WriteZipStreamWithAesAsync()
     {
         using var ms = new MemoryStream();
@@ -66,16 +61,14 @@ public class ZipStreamAsyncTests
 
             await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"){AESKeySize = 256});
             await Utils.WriteDummyDataAsync(outStream, 12);
-				
+
             await outStream.FinishAsync(CancellationToken.None);
         }
-			
+
         ZipTesting.AssertValidZip(ms, password);
     }
-		
-    [Test]
-    [Category("Zip")]
-    [Category("Async")]
+
+    [Fact]
     public async Task WriteZipStreamWithZipCryptoAsync()
     {
         using var ms = new MemoryStream();
@@ -88,16 +81,14 @@ public class ZipStreamAsyncTests
 
             await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"){AESKeySize = 0});
             await Utils.WriteDummyDataAsync(outStream, 12);
-				
+
             await outStream.FinishAsync(CancellationToken.None);
         }
-			
+
         ZipTesting.AssertValidZip(ms, password, false);
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("Async")]
+    [Fact]
     public async Task WriteReadOnlyZipStreamAsync ()
     {
         await using var ms = new MemoryStreamWithoutSeek();
@@ -116,11 +107,9 @@ public class ZipStreamAsyncTests
         ZipTesting.AssertValidZip(new MemoryStream(ms.ToArray()));
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("Async")]
-    [TestCase(12, Description = "Small files")]
-    [TestCase(12000, Description = "Large files")]
+    [Theory]
+    [InlineData(12)]
+    [InlineData(12000)]
     public async Task WriteZipStreamToAsyncOnlyStream (int fileSize)
     {
         await using var ms = new MemoryStreamWithoutSync();

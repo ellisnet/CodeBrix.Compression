@@ -2,18 +2,17 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using CodeBrix.Compression.Encryption;
-using NUnit.Framework;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Encryption;
 
-[TestFixture]
+[Trait("Category", "Encryption")]
 public class EncryptionTests
 {
-    [Test]
-    [Category("Encryption")]
-    [TestCase(8)]
-    [TestCase(24)]
-    [TestCase(64)]
+    [Theory]
+    [InlineData(8)]
+    [InlineData(24)]
+    [InlineData(64)]
     public void ZipAESTransform_ThrowsOnInvalidBlockSize(int blockSize)
     {
         var salt = new byte[blockSize / 2 > 0 ? blockSize / 2 : 1];
@@ -21,8 +20,7 @@ public class EncryptionTests
         Assert.Throws<Exception>(() => new ZipAESTransform("password", salt, blockSize, writeMode: true));
     }
 
-    [Test]
-    [Category("Encryption")]
+    [Fact]
     public void ZipAESTransform_ThrowsOnInvalidSaltLength()
     {
         // AES-128 (blockSize=16) requires salt of length 8
@@ -31,27 +29,26 @@ public class EncryptionTests
         Assert.Throws<Exception>(() => new ZipAESTransform("password", wrongSalt, 16, writeMode: true));
     }
 
-    [Test]
-    [Category("Encryption")]
-    [TestCase(16, 8)]
-    [TestCase(32, 16)]
+    [Theory]
+    [InlineData(16, 8)]
+    [InlineData(32, 16)]
     public void ZipAESTransform_SucceedsWithValidParameters(int blockSize, int saltLength)
     {
         var salt = new byte[saltLength];
         RandomNumberGenerator.Fill(salt);
 
         ZipAESTransform transform = null;
-        Assert.DoesNotThrow(() => transform = new ZipAESTransform("password", salt, blockSize, writeMode: true));
+        var ex = Record.Exception(() => transform = new ZipAESTransform("password", salt, blockSize, writeMode: true));
+        Assert.Null(ex);
 
-        Assert.That(transform, Is.Not.Null);
-        Assert.That(transform.PwdVerifier, Is.Not.Null);
-        Assert.That(transform.PwdVerifier.Length, Is.EqualTo(2));
+        Assert.NotNull(transform);
+        Assert.NotNull(transform.PwdVerifier);
+        Assert.Equal(2, transform.PwdVerifier.Length);
 
         transform.Dispose();
     }
 
-    [Test]
-    [Category("Encryption")]
+    [Fact]
     public void ZipAESStream_ThrowsWhenConstructedInWriteMode()
     {
         var salt = new byte[16];

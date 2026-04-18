@@ -1,30 +1,28 @@
 using CodeBrix.Compression.BZip2;
 using CodeBrix.Compression.Tests.TestSupport;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System.IO;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.BZip2;
 
 /// <summary>
 /// This class contains test cases for Bzip2 compression
 /// </summary>
-[TestFixture]
+[Trait("Category", "BZip2")]
 public class BZip2Suite
 {
     // Use the same random seed to guarantee all the code paths are followed
     const int RandomSeed = 4;
-		
+
     /// <summary>
     /// Basic compress/decompress test BZip2
     /// </summary>
-    [Test]
-    [Category("BZip2")]
+    [Fact]
     public void BasicRoundTrip()
     {
         var ms = new MemoryStream();
         var outStream = new BZip2OutputStream(ms);
-			
+
         var buf = Utils.GetDummyBytes(size: 10000, RandomSeed);
 
         outStream.Write(buf, offset: 0, buf.Length);
@@ -47,15 +45,14 @@ public class BZip2Suite
 
         for (var i = 0; i < buf.Length; ++i)
         {
-            ClassicAssert.AreEqual(buf2[i], buf[i]);
+            Assert.Equal(buf2[i], buf[i]);
         }
     }
 
     /// <summary>
     /// Check that creating an empty archive is handled ok
     /// </summary>
-    [Test]
-    [Category("BZip2")]
+    [Fact]
     public void CreateEmptyArchive()
     {
         var ms = new MemoryStream();
@@ -78,13 +75,11 @@ public class BZip2Suite
             pos += numRead;
         }
 
-        ClassicAssert.Zero(pos);
+        Assert.Equal(0, pos);
     }
 
-    [Test]
-    [Category("BZip2")]
-    [Category("Performance")]
-    [Explicit("Long-running")]
+    [Fact(Explicit = true, Skip = "Long-running")]
+    [Trait("Category", "Performance")]
     public void WriteThroughput()
     {
         PerformanceTesting.TestWrite(
@@ -93,10 +88,8 @@ public class BZip2Suite
         );
     }
 
-    [Test]
-    [Category("BZip2")]
-    [Category("Performance")]
-    [Explicit("Long-running")]
+    [Fact(Explicit = true, Skip = "Long-running")]
+    [Trait("Category", "Performance")]
     public void ReadWriteThroughput()
     {
         PerformanceTesting.TestReadWrite(

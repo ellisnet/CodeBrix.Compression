@@ -1,26 +1,27 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using CodeBrix.Compression.GZip;
 using CodeBrix.Compression.Tests.TestSupport;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.GZip;
 
-[TestFixture]
+[Trait("Category", "GZip")]
+[Trait("Category", "Async")]
 public class GZipAsyncTests
 {
-    [Test]
-    [Category("GZip")]
-    [Category("Async")]
-    public async Task SmallBufferDecompressionAsync([Values(0, 1, 3)] int seed)
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(3)]
+    public async Task SmallBufferDecompressionAsync(int seed)
     {
         var outputBufferSize = 100000;
         var outputBuffer = new byte[outputBufferSize];
         var inputBuffer = Utils.GetDummyBytes(outputBufferSize * 4, seed);
-			
+
         await using var msGzip = new MemoryStream();
         await using (var gzos = new GZipOutputStream(msGzip){IsStreamOwner = false})
         {
@@ -41,17 +42,15 @@ public class GZipAsyncTests
             var resultBuffer = msRaw.ToArray();
             for (var i = 0; i < resultBuffer.Length; i++)
             {
-                ClassicAssert.AreEqual(inputBuffer[i], resultBuffer[i]);
+                Assert.Equal(inputBuffer[i], resultBuffer[i]);
             }
         }
     }
-		
+
     /// <summary>
     /// Basic compress/decompress test
     /// </summary>
-    [Test]
-    [Category("GZip")]
-    [Category("Async")]
+    [Fact]
     public async Task OriginalFilenameAsync()
     {
         var content = "FileContents";
@@ -68,17 +67,15 @@ public class GZipAsyncTests
         {
             var readBuffer = new byte[content.Length];
             inStream.ReadExactly(readBuffer, 0, readBuffer.Length);
-            ClassicAssert.AreEqual(content, Encoding.ASCII.GetString(readBuffer));
-            ClassicAssert.AreEqual("file.ext", inStream.GetFilename());
+            Assert.Equal(content, Encoding.ASCII.GetString(readBuffer));
+            Assert.Equal("file.ext", inStream.GetFilename());
         }
     }
 
     /// <summary>
     /// Test creating an empty gzip stream using async
     /// </summary>
-    [Test]
-    [Category("GZip")]
-    [Category("Async")]
+    [Fact]
     public async Task EmptyGZipStreamAsync()
     {
         await using var ms = new MemoryStream();
@@ -92,13 +89,11 @@ public class GZipAsyncTests
         using (var reader = new StreamReader(inStream))
         {
             var content = await reader.ReadToEndAsync();
-            ClassicAssert.IsEmpty(content);
+            Assert.Empty(content);
         }
     }
 
-    [Test]
-    [Category("GZip")]
-    [Category("Async")]
+    [Fact]
     public async Task WriteGZipStreamToAsyncOnlyStream()
     {
         var content = Encoding.ASCII.GetBytes("a");
@@ -121,14 +116,15 @@ public class GZipAsyncTests
         var syncBytes = string.Join(' ', msSync.ToArray());
         var asyncBytes = string.Join(' ', msAsync.ToArray());
 
-        ClassicAssert.AreEqual(syncBytes, asyncBytes, "Sync and Async compressed streams are not equal");
+        Assert.Equal(syncBytes, asyncBytes);
 
         // Since GZipInputStream isn't async yet we need to read from it from a regular MemoryStream
         using (var readStream = new MemoryStream(msAsync.ToArray()))
         await using (var inStream = new GZipInputStream(readStream))
         using (var reader = new StreamReader(inStream))
         {
-            ClassicAssert.AreEqual(content, await reader.ReadToEndAsync());
+            // NOTE: preserving original semantics - compare decompressed text to original bytes encoded as ASCII
+            Assert.Equal(Encoding.ASCII.GetString(content), await reader.ReadToEndAsync());
         }
     }
 }

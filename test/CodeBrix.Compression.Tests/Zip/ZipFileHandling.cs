@@ -1,23 +1,20 @@
 ﻿using CodeBrix.Compression.Core;
 using CodeBrix.Compression.Tests.TestSupport;
 using CodeBrix.Compression.Zip;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
+using Xunit;
 using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using Does = CodeBrix.Compression.Tests.TestSupport.Does;
 
 // ReSharper disable InconsistentNaming
 
 namespace CodeBrix.Compression.Tests.Zip;
 
-[TestFixture]
 public class ZipFileHandling : ZipBase
 {
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void NullStreamDetected()
     {
         ZipFile bad = null;
@@ -35,20 +32,20 @@ public class ZipFileHandling : ZipBase
             nullStreamDetected = true;
         }
 
-        ClassicAssert.IsTrue(nullStreamDetected, "Null stream should be detected in ZipFile constructor");
-        ClassicAssert.IsNull(bad, "ZipFile instance should not be created");
+        Assert.True(nullStreamDetected, "Null stream should be detected in ZipFile constructor");
+        Assert.Null(bad);
     }
 
     /// <summary>
     /// Check that adding too many entries is detected and handled
     /// </summary>
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
+    [Fact]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "CreatesTempFile")]
     public void Zip64Entries()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         const int target = 65537;
 
@@ -64,12 +61,12 @@ public class ZipFileHandling : ZipBase
         }
         zipFile.CommitUpdate();
 
-        Assert.That(zipFile, Does.PassTestArchive());
-        ClassicAssert.AreEqual(target, zipFile.Count, "Incorrect number of entries stored");
+        ZipTesting.AssertPassesTestArchive(zipFile);
+        Assert.Equal(target, zipFile.Count);
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void EmbeddedArchive()
     {
         var memStream = new MemoryStream();
@@ -82,7 +79,7 @@ public class ZipFileHandling : ZipBase
             f.Add(m, "a.dat");
             f.Add(m, "b.dat");
             f.CommitUpdate();
-            Assert.That(f, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(f);
         }
 
         var rawArchive = memStream.ToArray();
@@ -98,13 +95,13 @@ public class ZipFileHandling : ZipBase
                 var data = new MemoryStream();
                 StreamUtils.Copy(entryStream, data, new byte[128]);
                 var contents = Encoding.ASCII.GetString(data.ToArray());
-                ClassicAssert.AreEqual("0000000", contents);
+                Assert.Equal("0000000", contents);
             }
         }
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void Zip64Useage()
     {
         var memStream = new MemoryStream();
@@ -118,7 +115,7 @@ public class ZipFileHandling : ZipBase
             f.Add(m, "a.dat");
             f.Add(m, "b.dat");
             f.CommitUpdate();
-            Assert.That(f, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(f);
         }
 
         var rawArchive = memStream.ToArray();
@@ -135,7 +132,7 @@ public class ZipFileHandling : ZipBase
                 var data = new MemoryStream();
                 StreamUtils.Copy(entryStream, data, new byte[128]);
                 var contents = Encoding.ASCII.GetString(data.ToArray());
-                ClassicAssert.AreEqual("0000000", contents);
+                Assert.Equal("0000000", contents);
             }
         }
     }
@@ -143,8 +140,8 @@ public class ZipFileHandling : ZipBase
     /// <summary>
     /// Test that entries can be removed from a Zip64 file
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void Zip64Update()
     {
         using var memStream = new MemoryStream();
@@ -157,26 +154,26 @@ public class ZipFileHandling : ZipBase
             f.Add(m, "a.dat");
             f.Add(m, "b.dat");
             f.CommitUpdate();
-            Assert.That(f.TestArchive(true), Is.True, "initial archive should be valid");
+            Assert.True(f.TestArchive(true));
         }
 
         memStream.Seek(0, SeekOrigin.Begin);
 
         using (var f = new ZipFile(memStream, leaveOpen: true))
         {
-            Assert.That(f.Count, Is.EqualTo(2), "Archive should have 2 entries");
+            Assert.Equal(2, f.Count);
 
             f.BeginUpdate(new MemoryArchiveStorage());
             f.Delete("b.dat");
             f.CommitUpdate();
-            Assert.That(f.TestArchive(true), Is.True, "modified archive should be valid");
+            Assert.True(f.TestArchive(true));
         }
 
         memStream.Seek(0, SeekOrigin.Begin);
 
         using (var f = new ZipFile(memStream, leaveOpen: true))
         {
-            Assert.That(f.Count, Is.EqualTo(1), "Archive should have 1 entry");
+            Assert.Equal(1, f.Count);
 
             for (var index = 0; index < f.Count; ++index)
             {
@@ -184,7 +181,7 @@ public class ZipFileHandling : ZipBase
                 var data = new MemoryStream();
                 StreamUtils.Copy(entryStream, data, new byte[128]);
                 var contents = Encoding.ASCII.GetString(data.ToArray());
-                Assert.That(contents, Is.EqualTo("0000000"), "archive member data should be correct");
+                Assert.Equal("0000000", contents);
             }
         }
     }
@@ -193,8 +190,8 @@ public class ZipFileHandling : ZipBase
     /// Test for issue #403 - zip64 locator signature bytes being present in a contained file,
     /// when the outer zip file isn't using zip64
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void FakeZip64Locator()
     {
         using var memStream = new MemoryStream();
@@ -210,7 +207,7 @@ public class ZipFileHandling : ZipBase
             f.BeginUpdate(new MemoryArchiveStorage());
             f.Add(m, "a.dat", CompressionMethod.Stored);
             f.CommitUpdate();
-            Assert.That(f, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(f);
         }
 
         memStream.Seek(0, SeekOrigin.Begin);
@@ -218,13 +215,12 @@ public class ZipFileHandling : ZipBase
         // Check that the archive is readable.
         using (var f = new ZipFile(memStream, leaveOpen: true))
         {
-            Assert.That(f.Count, Is.EqualTo(1), "Archive should have 1 entry");
+            Assert.Equal(1, f.Count);
         }
     }
 
-    [Test]
-    [Category("Zip")]
-    [Explicit]
+    [Fact(Explicit = true)]
+    [Trait("Category", "Zip")]
     public void Zip64Offset()
     {
         // TODO: Test to check that a zip64 offset value is loaded correctly.
@@ -232,8 +228,8 @@ public class ZipFileHandling : ZipBase
         // were not quite correct...
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void BasicEncryption()
     {
         const string testValue = "0001000";
@@ -247,7 +243,7 @@ public class ZipFileHandling : ZipBase
             zf.BeginUpdate(new MemoryArchiveStorage());
             zf.Add(m, "a.dat");
             zf.CommitUpdate();
-            ClassicAssert.IsTrue(zf.TestArchive(testData: true), "Archive test should pass");
+            Assert.True(zf.TestArchive(testData: true), "Archive test should pass");
         }
 
         using (var zf = new ZipFile(memStream))
@@ -255,23 +251,23 @@ public class ZipFileHandling : ZipBase
             zf.Password = "Hello";
             var ze = zf[0];
 
-            ClassicAssert.IsTrue(ze.IsCrypted, "Entry should be encrypted");
+            Assert.True(ze.IsCrypted, "Entry should be encrypted");
             using (var r = new StreamReader(zf.GetInputStream(entryIndex: 0)))
             {
                 var data = r.ReadToEnd();
-                ClassicAssert.AreEqual(testValue, data);
+                Assert.Equal(testValue, data);
             }
         }
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
+    [Fact]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "CreatesTempFile")]
     public void BasicEncryptionToDisk()
     {
         const string testValue = "0001000";
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
 
@@ -288,7 +284,7 @@ public class ZipFileHandling : ZipBase
         using (var zf = new ZipFile(tempFile))
         {
             zf.Password = "Hello";
-            ClassicAssert.IsTrue(zf.TestArchive(testData: true), "Archive test should pass");
+            Assert.True(zf.TestArchive(testData: true), "Archive test should pass");
         }
 
         using (var zf = new ZipFile(tempFile))
@@ -296,19 +292,19 @@ public class ZipFileHandling : ZipBase
             zf.Password = "Hello";
             var ze = zf[0];
 
-            ClassicAssert.IsTrue(ze.IsCrypted, "Entry should be encrypted");
+            Assert.True(ze.IsCrypted, "Entry should be encrypted");
             using (var r = new StreamReader(zf.GetInputStream(entryIndex: 0)))
             {
                 var data = r.ReadToEnd();
-                ClassicAssert.AreEqual(testValue, data);
+                Assert.Equal(testValue, data);
             }
         }
 
         File.Delete(tempFile);
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void AddEncryptedEntriesToExistingArchive()
     {
         const string testValue = "0001000";
@@ -322,18 +318,18 @@ public class ZipFileHandling : ZipBase
             f.BeginUpdate(new MemoryArchiveStorage());
             f.Add(m, "a.dat");
             f.CommitUpdate();
-            ClassicAssert.IsTrue(f.TestArchive(true), "Archive test should pass");
+            Assert.True(f.TestArchive(true), "Archive test should pass");
         }
 
         using (var g = new ZipFile(memStream))
         {
             var ze = g[0];
 
-            ClassicAssert.IsFalse(ze.IsCrypted, "Entry should NOT be encrypted");
+            Assert.False(ze.IsCrypted, "Entry should NOT be encrypted");
             using (var r = new StreamReader(g.GetInputStream(0)))
             {
                 var data = r.ReadToEnd();
-                ClassicAssert.AreEqual(testValue, data);
+                Assert.Equal(testValue, data);
             }
 
             var n = new StringMemoryDataSource(testValue);
@@ -344,14 +340,14 @@ public class ZipFileHandling : ZipBase
             g.BeginUpdate();
             g.Add(n, "a1.dat");
             g.CommitUpdate();
-            ClassicAssert.IsTrue(g.TestArchive(true), "Archive test should pass");
+            Assert.True(g.TestArchive(true), "Archive test should pass");
             ze = g[1];
-            ClassicAssert.IsTrue(ze.IsCrypted, "New entry should be encrypted");
+            Assert.True(ze.IsCrypted, "New entry should be encrypted");
 
             using (var r = new StreamReader(g.GetInputStream(0)))
             {
                 var data = r.ReadToEnd();
-                ClassicAssert.AreEqual(testValue, data);
+                Assert.Equal(testValue, data);
             }
         }
     }
@@ -363,8 +359,8 @@ public class ZipFileHandling : ZipBase
 
         using var f = new ZipFile(ms);
         f.IsStreamOwner = false;
-        ClassicAssert.AreEqual(totalEntries, f.Count);
-        Assert.That(f, Does.PassTestArchive());
+        Assert.Equal(totalEntries, f.Count);
+        ZipTesting.AssertPassesTestArchive(f);
         f.BeginUpdate(new MemoryArchiveStorage());
 
         for (var i = 0; i < additions; ++i)
@@ -383,9 +379,8 @@ public class ZipFileHandling : ZipBase
         // WriteToFile(@"c:\aha.zip", ms.ToArray());
 
         var newTotal = totalEntries + additions - toDelete.Length;
-        ClassicAssert.AreEqual(newTotal, f.Count,
-            string.Format("Expected {0} entries after update found {1}", newTotal, f.Count));
-        ClassicAssert.IsTrue(f.TestArchive(true), "Archive test should pass");
+        Assert.Equal(newTotal, f.Count);
+        Assert.True(f.TestArchive(true), "Archive test should pass");
     }
 
     private void TryDeleting(byte[] master, int totalEntries, int additions, params int[] toDelete)
@@ -395,8 +390,8 @@ public class ZipFileHandling : ZipBase
 
         using var f = new ZipFile(ms);
         f.IsStreamOwner = false;
-        ClassicAssert.AreEqual(totalEntries, f.Count);
-        Assert.That(f, Does.PassTestArchive());
+        Assert.Equal(totalEntries, f.Count);
+        ZipTesting.AssertPassesTestArchive(f);
         f.BeginUpdate(new MemoryArchiveStorage());
 
         for (var i = 0; i < additions; ++i)
@@ -418,13 +413,12 @@ public class ZipFileHandling : ZipBase
                             }
             */
         var newTotal = totalEntries + additions - toDelete.Length;
-        ClassicAssert.AreEqual(newTotal, f.Count,
-            string.Format("Expected {0} entries after update found {1}", newTotal, f.Count));
-        ClassicAssert.IsTrue(f.TestArchive(true), "Archive test should pass");
+        Assert.Equal(newTotal, f.Count);
+        Assert.True(f.TestArchive(true), "Archive test should pass");
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void AddAndDeleteEntriesMemory()
     {
         var memStream = new MemoryStream();
@@ -439,7 +433,7 @@ public class ZipFileHandling : ZipBase
             f.Add(new StringMemoryDataSource("Mr C"), @"c\c.dat");
             f.Add(new StringMemoryDataSource("Mrs D was a star"), @"d\d.dat");
             f.CommitUpdate();
-            Assert.That(f, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(f);
             foreach (var entry in f)
             {
                 Console.WriteLine($" - {entry.Name}");
@@ -475,13 +469,13 @@ public class ZipFileHandling : ZipBase
         TryDeleting(master, 4, 40, 2);
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
+    [Fact]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "CreatesTempFile")]
     public void AddAndDeleteEntries()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         var addFile = Path.Combine(tempFile, "a.dat");
         MakeTempFile(addFile, 1);
@@ -500,27 +494,27 @@ public class ZipFileHandling : ZipBase
             f.Add(addFile2);
             f.AddDirectory(addDirectory);
             f.CommitUpdate();
-            Assert.That(f, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(f);
         }
 
         using (var f = new ZipFile(tempFile))
         {
-            ClassicAssert.AreEqual(3, f.Count);
-            Assert.That(f, Does.PassTestArchive());
+            Assert.Equal(3, f.Count);
+            ZipTesting.AssertPassesTestArchive(f);
 
             // Delete file
             f.BeginUpdate();
             f.Delete(f[0]);
             f.CommitUpdate();
-            ClassicAssert.AreEqual(2, f.Count);
-            Assert.That(f, Does.PassTestArchive());
+            Assert.Equal(2, f.Count);
+            ZipTesting.AssertPassesTestArchive(f);
 
             // Delete directory
             f.BeginUpdate();
             f.Delete(f[1]);
             f.CommitUpdate();
-            ClassicAssert.AreEqual(1, f.Count);
-            Assert.That(f, Does.PassTestArchive());
+            Assert.Equal(1, f.Count);
+            ZipTesting.AssertPassesTestArchive(f);
         }
 
         File.Delete(addFile);
@@ -531,13 +525,13 @@ public class ZipFileHandling : ZipBase
     /// <summary>
     /// Simple round trip test for ZipFile class
     /// </summary>
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
+    [Fact]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "CreatesTempFile")]
     public void RoundTrip()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
 
@@ -562,8 +556,8 @@ public class ZipFileHandling : ZipBase
     /// <summary>
     /// Simple round trip test for ZipFile class
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void RoundTripInMemory()
     {
         var storage = new MemoryStream();
@@ -581,11 +575,12 @@ public class ZipFileHandling : ZipBase
     /// <summary>
     /// Simple async round trip test for ZipFile class
     /// </summary>
-    [TestCase(CompressionMethod.Stored)]
-    [TestCase(CompressionMethod.Deflated)]
-    [TestCase(CompressionMethod.BZip2)]
-    [Category("Zip")]
-    [Category("Async")]
+    [Theory]
+    [InlineData(CompressionMethod.Stored)]
+    [InlineData(CompressionMethod.Deflated)]
+    [InlineData(CompressionMethod.BZip2)]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "Async")]
     public async Task RoundTripInMemoryAsync(CompressionMethod compressionMethod)
     {
         var storage = new MemoryStream();
@@ -599,12 +594,12 @@ public class ZipFileHandling : ZipBase
         }
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void AddToEmptyArchive()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         var addFile = Path.Combine(tempFile, "a.dat");
 
@@ -619,18 +614,18 @@ public class ZipFileHandling : ZipBase
                 f.BeginUpdate();
                 f.Add(addFile);
                 f.CommitUpdate();
-                ClassicAssert.AreEqual(1, f.Count);
-                Assert.That(f, Does.PassTestArchive());
+                Assert.Equal(1, f.Count);
+                ZipTesting.AssertPassesTestArchive(f);
             }
 
             using (var f = new ZipFile(tempFile))
             {
-                ClassicAssert.AreEqual(1, f.Count);
+                Assert.Equal(1, f.Count);
                 f.BeginUpdate();
                 f.Delete(f[0]);
                 f.CommitUpdate();
-                ClassicAssert.AreEqual(0, f.Count);
-                Assert.That(f, Does.PassTestArchive());
+                Assert.Equal(0, f.Count);
+                ZipTesting.AssertPassesTestArchive(f);
                 f.Close();
             }
 
@@ -642,12 +637,12 @@ public class ZipFileHandling : ZipBase
         }
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void CreateEmptyArchive()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
 
@@ -655,21 +650,21 @@ public class ZipFileHandling : ZipBase
         {
             f.BeginUpdate();
             f.CommitUpdate();
-            Assert.That(f, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(f);
             f.Close();
         }
 
         using (var f = new ZipFile(tempFile))
         {
-            ClassicAssert.AreEqual(0, f.Count);
+            Assert.Equal(0, f.Count);
         }
 
         File.Delete(tempFile);
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
+    [Fact]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "CreatesTempFile")]
     public void CreateArchiveWithNoCompression()
     {
         using var sourceFile = Utils.GetDummyFile();
@@ -680,17 +675,17 @@ public class ZipFileHandling : ZipBase
             zf.BeginUpdate();
             zf.Add(sourceFile, CompressionMethod.Stored);
             zf.CommitUpdate();
-            Assert.That(zf, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(zf);
             zf.Close();
         }
 
         using (var zf = new ZipFile(zipFile))
         {
-            ClassicAssert.AreEqual(1, zf.Count);
+            Assert.Equal(1, zf.Count);
             using (var sr = new StreamReader(zf.GetInputStream(zf[0])))
             {
                 var outputContent = sr.ReadToEnd();
-                ClassicAssert.AreEqual(inputContent, outputContent, "extracted content does not match source content");
+                Assert.Equal(inputContent, outputContent);
             }
         }
     }
@@ -698,13 +693,13 @@ public class ZipFileHandling : ZipBase
     /// <summary>
     /// Check that ZipFile finds entries when its got a long comment
     /// </summary>
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
+    [Fact]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "CreatesTempFile")]
     public void FindEntriesInArchiveWithLongComment()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
         var longComment = new String('A', 65535);
@@ -732,13 +727,13 @@ public class ZipFileHandling : ZipBase
     /// <remarks>
     /// This may well be flawed but is the current behaviour.
     /// </remarks>
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
+    [Fact]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "CreatesTempFile")]
     public void FindEntriesInArchiveExtraData()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
         var longComment = new String('A', 65535);
@@ -765,47 +760,47 @@ public class ZipFileHandling : ZipBase
         }
 
         File.Delete(tempFile);
-        ClassicAssert.IsTrue(fails, "Currently zip file wont be found");
+        Assert.True(fails, "Currently zip file wont be found");
     }
 
     /// <summary>
     /// Test ZipFile Find method operation
     /// </summary>
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
+    [Fact]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "CreatesTempFile")]
     public void FindEntry()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
         MakeZipFile(tempFile, new string[] { "Farriera", "Champagne", "Urban myth" }, 10, "Aha");
 
         using (var zipFile = new ZipFile(tempFile))
         {
-            ClassicAssert.AreEqual(3, zipFile.Count, "Expected 1 entry");
+            Assert.Equal(3, zipFile.Count);
 
             var testIndex = zipFile.FindEntry("Farriera", false);
-            ClassicAssert.AreEqual(0, testIndex, "Case sensitive find failure");
-            ClassicAssert.IsTrue(string.Compare(zipFile[testIndex].Name, "Farriera", StringComparison.Ordinal) == 0);
+            Assert.Equal(0, testIndex);
+            Assert.True(string.Compare(zipFile[testIndex].Name, "Farriera", StringComparison.Ordinal) == 0);
 
             testIndex = zipFile.FindEntry("Farriera", true);
-            ClassicAssert.AreEqual(0, testIndex, "Case insensitive find failure");
-            ClassicAssert.IsTrue(string.Compare(zipFile[testIndex].Name, "Farriera", StringComparison.OrdinalIgnoreCase) == 0);
+            Assert.Equal(0, testIndex);
+            Assert.True(string.Compare(zipFile[testIndex].Name, "Farriera", StringComparison.OrdinalIgnoreCase) == 0);
 
             testIndex = zipFile.FindEntry("urban mYTH", false);
-            ClassicAssert.AreEqual(-1, testIndex, "Case sensitive find failure");
+            Assert.Equal(-1, testIndex);
 
             testIndex = zipFile.FindEntry("urban mYTH", true);
-            ClassicAssert.AreEqual(2, testIndex, "Case insensitive find failure");
-            ClassicAssert.IsTrue(string.Compare(zipFile[testIndex].Name, "urban mYTH", StringComparison.OrdinalIgnoreCase) == 0);
+            Assert.Equal(2, testIndex);
+            Assert.True(string.Compare(zipFile[testIndex].Name, "urban mYTH", StringComparison.OrdinalIgnoreCase) == 0);
 
             testIndex = zipFile.FindEntry("Champane.", false);
-            ClassicAssert.AreEqual(-1, testIndex, "Case sensitive find failure");
+            Assert.Equal(-1, testIndex);
 
             testIndex = zipFile.FindEntry("Champane.", true);
-            ClassicAssert.AreEqual(-1, testIndex, "Case insensitive find failure");
+            Assert.Equal(-1, testIndex);
 
             zipFile.Close();
         }
@@ -815,28 +810,28 @@ public class ZipFileHandling : ZipBase
     /// <summary>
     /// Check that ZipFile class handles no entries in zip file
     /// </summary>
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
+    [Fact]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "CreatesTempFile")]
     public void HandlesNoEntries()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
         MakeZipFile(tempFile, "", 0, 1, "Aha");
 
         using (var zipFile = new ZipFile(tempFile))
         {
-            ClassicAssert.AreEqual(0, zipFile.Count);
+            Assert.Equal(0, zipFile.Count);
             zipFile.Close();
         }
 
         File.Delete(tempFile);
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void ArchiveTesting()
     {
         byte[] originalData = null;
@@ -848,7 +843,7 @@ public class ZipFileHandling : ZipBase
 
         using (var testFile = new ZipFile(ms))
         {
-            Assert.That(testFile, Does.PassTestArchive(), "Unexpected error in archive detected");
+            ZipTesting.AssertPassesTestArchive(testFile);
 
             var corrupted = new byte[compressedData.Length];
             Array.Copy(compressedData, corrupted, compressedData.Length);
@@ -859,11 +854,14 @@ public class ZipFileHandling : ZipBase
 
         using (var testFile = new ZipFile(ms))
         {
-            Assert.That(testFile, Does.Not.PassTestArchive(), "Error in archive not detected");
+            // Expect the archive to fail (invert logic of PassTestArchive)
+            var report = new TestArchiveReport();
+            var passed = testFile.TestArchive(true, TestStrategy.FindAllErrors, report.HandleTestResults);
+            Assert.False(passed, "Error in archive not detected");
         }
     }
 
-    private void TestDirectoryEntry(MemoryStream s)
+    private void TestDirectoryEntryImpl(MemoryStream s)
     {
         var outStream = new ZipOutputStream(s);
         outStream.IsStreamOwner = false;
@@ -872,18 +870,18 @@ public class ZipFileHandling : ZipBase
 
         var ms2 = new MemoryStream(s.ToArray());
         using var zf = new ZipFile(ms2);
-        Assert.That(zf, Does.PassTestArchive());
+        ZipTesting.AssertPassesTestArchive(zf);
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void TestDirectoryEntry()
     {
-        TestDirectoryEntry(new MemoryStream());
-        TestDirectoryEntry(new MemoryStreamWithoutSeek());
+        TestDirectoryEntryImpl(new MemoryStream());
+        TestDirectoryEntryImpl(new MemoryStreamWithoutSeek());
     }
 
-    private void TestEncryptedDirectoryEntry(MemoryStream s, int aesKeySize)
+    private void TestEncryptedDirectoryEntryImpl(MemoryStream s, int aesKeySize)
     {
         var outStream = new ZipOutputStream(s);
         outStream.Password = "Tonto hand me a beer";
@@ -894,19 +892,22 @@ public class ZipFileHandling : ZipBase
 
         var ms2 = new MemoryStream(s.ToArray());
         using var zf = new ZipFile(ms2);
-        Assert.That(zf, Does.PassTestArchive());
+        ZipTesting.AssertPassesTestArchive(zf);
     }
 
-    [Test]
-    [Category("Zip")]
-    public void TestEncryptedDirectoryEntry([Values(0, 128, 256)]int aesKeySize)
+    [Theory]
+    [Trait("Category", "Zip")]
+    [InlineData(0)]
+    [InlineData(128)]
+    [InlineData(256)]
+    public void TestEncryptedDirectoryEntry(int aesKeySize)
     {
-        TestEncryptedDirectoryEntry(new MemoryStream(), aesKeySize);
-        TestEncryptedDirectoryEntry(new MemoryStreamWithoutSeek(), aesKeySize);
+        TestEncryptedDirectoryEntryImpl(new MemoryStream(), aesKeySize);
+        TestEncryptedDirectoryEntryImpl(new MemoryStreamWithoutSeek(), aesKeySize);
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void Crypto_AddEncryptedEntryToExistingArchiveSafe()
     {
         var ms = new MemoryStream();
@@ -922,7 +923,7 @@ public class ZipFileHandling : ZipBase
             testFile.Add(new StringMemoryDataSource("No3"), "No3", CompressionMethod.Stored);
             testFile.CommitUpdate();
 
-            Assert.That(testFile, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(testFile);
             rawData = ms.ToArray();
         }
 
@@ -930,23 +931,23 @@ public class ZipFileHandling : ZipBase
 
         using (var testFile = new ZipFile(ms))
         {
-            Assert.That(testFile, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(testFile);
 
             testFile.BeginUpdate(new MemoryArchiveStorage(FileUpdateMode.Safe));
             testFile.Password = "pwd";
             testFile.Add(new StringMemoryDataSource("Zapata!"), "encrypttest.xml");
             testFile.CommitUpdate();
 
-            Assert.That(testFile, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(testFile);
 
             var entryIndex = testFile.FindEntry("encrypttest.xml", true);
-            ClassicAssert.IsNotNull(entryIndex >= 0);
-            ClassicAssert.IsTrue(testFile[entryIndex].IsCrypted);
+            Assert.True(entryIndex >= 0);
+            Assert.True(testFile[entryIndex].IsCrypted);
         }
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void Crypto_AddEncryptedEntryToExistingArchiveDirect()
     {
         var ms = new MemoryStream();
@@ -960,12 +961,12 @@ public class ZipFileHandling : ZipBase
             testFile.Add(new StringMemoryDataSource("No3"), "No3", CompressionMethod.Stored);
             testFile.CommitUpdate();
 
-            Assert.That(testFile, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(testFile);
         }
 
         using (var testFile = new ZipFile(ms))
         {
-            Assert.That(testFile, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(testFile);
             testFile.IsStreamOwner = true;
 
             testFile.BeginUpdate();
@@ -973,17 +974,17 @@ public class ZipFileHandling : ZipBase
             testFile.Add(new StringMemoryDataSource("Zapata!"), "encrypttest.xml");
             testFile.CommitUpdate();
 
-            Assert.That(testFile, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(testFile);
 
             var entryIndex = testFile.FindEntry("encrypttest.xml", true);
-            ClassicAssert.IsNotNull(entryIndex >= 0);
-            ClassicAssert.IsTrue(testFile[entryIndex].IsCrypted);
+            Assert.True(entryIndex >= 0);
+            Assert.True(testFile[entryIndex].IsCrypted);
         }
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("Unicode")]
+    [Fact]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "Unicode")]
     public void UnicodeNames()
     {
         using var memStream = new MemoryStream();
@@ -999,7 +1000,7 @@ public class ZipFileHandling : ZipBase
             }
             f.CommitUpdate();
 
-            Assert.That(f, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(f);
         }
         memStream.Seek(0, SeekOrigin.Begin);
         using (var zf = new ZipFile(memStream))
@@ -1016,16 +1017,16 @@ public class ZipFileHandling : ZipBase
                     content = sr.ReadToEnd();
                 }
 
-                TestContext.WriteLine($"Entry #{index}: {name}, Content: {content}");
+                Console.WriteLine($"Entry #{index}: {name}, Content: {content}");
 
-                ClassicAssert.IsTrue(index >= 0);
-                ClassicAssert.AreEqual(name, entry.Name);
+                Assert.True(index >= 0);
+                Assert.Equal(name, entry.Name);
             }
         }
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void UpdateCommentOnlyInMemory()
     {
         var ms = new MemoryStream();
@@ -1039,36 +1040,36 @@ public class ZipFileHandling : ZipBase
             testFile.Add(new StringMemoryDataSource("No3"), "No3", CompressionMethod.Stored);
             testFile.CommitUpdate();
 
-            Assert.That(testFile, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(testFile);
         }
 
         using (var testFile = new ZipFile(ms))
         {
-            Assert.That(testFile, Does.PassTestArchive());
-            ClassicAssert.AreEqual("", testFile.ZipFileComment);
+            ZipTesting.AssertPassesTestArchive(testFile);
+            Assert.Equal("", testFile.ZipFileComment);
             testFile.IsStreamOwner = false;
 
             testFile.BeginUpdate();
             testFile.SetComment("Here is my comment");
             testFile.CommitUpdate();
 
-            Assert.That(testFile, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(testFile);
         }
 
         using (var testFile = new ZipFile(ms))
         {
-            Assert.That(testFile, Does.PassTestArchive());
-            ClassicAssert.AreEqual("Here is my comment", testFile.ZipFileComment);
+            ZipTesting.AssertPassesTestArchive(testFile);
+            Assert.Equal("Here is my comment", testFile.ZipFileComment);
         }
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
+    [Fact]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "CreatesTempFile")]
     public void UpdateCommentOnlyOnDisk()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
         if (File.Exists(tempFile))
@@ -1084,25 +1085,25 @@ public class ZipFileHandling : ZipBase
             testFile.Add(new StringMemoryDataSource("No3"), "No3", CompressionMethod.Stored);
             testFile.CommitUpdate();
 
-            Assert.That(testFile, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(testFile);
         }
 
         using (var testFile = new ZipFile(tempFile))
         {
-            Assert.That(testFile, Does.PassTestArchive());
-            ClassicAssert.AreEqual("", testFile.ZipFileComment);
+            ZipTesting.AssertPassesTestArchive(testFile);
+            Assert.Equal("", testFile.ZipFileComment);
 
             testFile.BeginUpdate(new DiskArchiveStorage(testFile, FileUpdateMode.Direct));
             testFile.SetComment("Here is my comment");
             testFile.CommitUpdate();
 
-            Assert.That(testFile, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(testFile);
         }
 
         using (var testFile = new ZipFile(tempFile))
         {
-            Assert.That(testFile, Does.PassTestArchive());
-            ClassicAssert.AreEqual("Here is my comment", testFile.ZipFileComment);
+            ZipTesting.AssertPassesTestArchive(testFile);
+            Assert.Equal("Here is my comment", testFile.ZipFileComment);
         }
         File.Delete(tempFile);
 
@@ -1115,31 +1116,31 @@ public class ZipFileHandling : ZipBase
             testFile.Add(new StringMemoryDataSource("No3"), "No3", CompressionMethod.Stored);
             testFile.CommitUpdate();
 
-            Assert.That(testFile, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(testFile);
         }
 
         using (var testFile = new ZipFile(tempFile))
         {
-            Assert.That(testFile, Does.PassTestArchive());
-            ClassicAssert.AreEqual("", testFile.ZipFileComment);
+            ZipTesting.AssertPassesTestArchive(testFile);
+            Assert.Equal("", testFile.ZipFileComment);
 
             testFile.BeginUpdate();
             testFile.SetComment("Here is my comment");
             testFile.CommitUpdate();
 
-            Assert.That(testFile, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(testFile);
         }
 
         using (var testFile = new ZipFile(tempFile))
         {
-            Assert.That(testFile, Does.PassTestArchive());
-            ClassicAssert.AreEqual("Here is my comment", testFile.ZipFileComment);
+            ZipTesting.AssertPassesTestArchive(testFile);
+            Assert.Equal("Here is my comment", testFile.ZipFileComment);
         }
         File.Delete(tempFile);
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void NameFactory()
     {
         var memStream = new MemoryStream();
@@ -1164,23 +1165,23 @@ public class ZipFileHandling : ZipBase
                 CompressionMethod.Deflated, true);
         }
         f.CommitUpdate();
-        Assert.That(f, Does.PassTestArchive());
+        ZipTesting.AssertPassesTestArchive(f);
 
         foreach (var name in names)
         {
             var index = f.FindEntry(name, true);
 
-            ClassicAssert.IsTrue(index >= 0);
+            Assert.True(index >= 0);
             var found = f[index];
-            ClassicAssert.AreEqual(name, found.Name);
-            ClassicAssert.IsTrue(found.IsUnicodeText);
-            ClassicAssert.AreEqual(fixedTime, found.DateTime);
-            ClassicAssert.IsTrue(found.IsDOSEntry);
+            Assert.Equal(name, found.Name);
+            Assert.True(found.IsUnicodeText);
+            Assert.Equal(fixedTime, found.DateTime);
+            Assert.True(found.IsDOSEntry);
         }
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void NestedArchive()
     {
         var ms = new MemoryStream();
@@ -1209,12 +1210,12 @@ public class ZipFileHandling : ZipBase
         using (var zipFile = new ZipFile(ms))
         {
             var e = zipFile[0];
-            ClassicAssert.AreEqual("Container", e.Name);
+            Assert.Equal("Container", e.Name);
 
             using (var nested = new ZipFile(zipFile.GetInputStream(0)))
             {
-                Assert.That(nested, Does.PassTestArchive());
-                ClassicAssert.AreEqual(1, nested.Count);
+                ZipTesting.AssertPassesTestArchive(nested);
+                Assert.Equal(1, nested.Count);
 
                 var nestedStream = nested.GetInputStream(0);
 
@@ -1222,7 +1223,7 @@ public class ZipFileHandling : ZipBase
 
                 var contents = reader.ReadToEnd();
 
-                ClassicAssert.AreEqual("Hello", contents);
+                Assert.Equal("Hello", contents);
             }
         }
     }
@@ -1245,7 +1246,7 @@ public class ZipFileHandling : ZipBase
         return zf.GetInputStream(0);
     }
 
-    [Test]
+    [Fact]
     public void UnreferencedZipFileClosingPartialStream()
     {
         var s = GetPartialStream();
@@ -1258,8 +1259,8 @@ public class ZipFileHandling : ZipBase
     /// <summary>
     /// Check that input stream is closed when IsStreamOwner is true (default), or leaveOpen is false
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void StreamClosedWhenOwner()
     {
         var ms = new MemoryStream();
@@ -1270,51 +1271,51 @@ public class ZipFileHandling : ZipBase
         // Stream should be closed when leaveOpen is unspecified
         {
             var inMemoryZip = new TrackedMemoryStream(zipData);
-            ClassicAssert.IsFalse(inMemoryZip.IsClosed, "Input stream should NOT be closed");
+            Assert.False(inMemoryZip.IsClosed, "Input stream should NOT be closed");
 
             using (var zipFile = new ZipFile(inMemoryZip))
             {
-                ClassicAssert.IsTrue(zipFile.IsStreamOwner, "Should be stream owner by default");
+                Assert.True(zipFile.IsStreamOwner, "Should be stream owner by default");
             }
 
-            ClassicAssert.IsTrue(inMemoryZip.IsClosed, "Input stream should be closed by default");
+            Assert.True(inMemoryZip.IsClosed, "Input stream should be closed by default");
         }
 
         // Stream should be closed when leaveOpen is false
         {
             var inMemoryZip = new TrackedMemoryStream(zipData);
-            ClassicAssert.IsFalse(inMemoryZip.IsClosed, "Input stream should NOT be closed");
+            Assert.False(inMemoryZip.IsClosed, "Input stream should NOT be closed");
 
             using (var zipFile = new ZipFile(inMemoryZip, false))
             {
-                ClassicAssert.IsTrue(zipFile.IsStreamOwner, "Should be stream owner when leaveOpen is false");
+                Assert.True(zipFile.IsStreamOwner, "Should be stream owner when leaveOpen is false");
             }
 
-            ClassicAssert.IsTrue(inMemoryZip.IsClosed, "Input stream should be closed when leaveOpen is false");
+            Assert.True(inMemoryZip.IsClosed, "Input stream should be closed when leaveOpen is false");
         }
     }
 
     /// <summary>
     /// Check that input stream is not closed when IsStreamOwner is false;
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void StreamNotClosedWhenNotOwner()
     {
         var ms = new TrackedMemoryStream();
         MakeZipFile(ms, false, "StreamNotClosedWhenNotOwner", 1, 10, "test");
         ms.Seek(0, SeekOrigin.Begin);
 
-        ClassicAssert.IsFalse(ms.IsClosed, "Input stream should NOT be closed");
+        Assert.False(ms.IsClosed, "Input stream should NOT be closed");
 
         // Stream should not be closed when leaveOpen is true
         {
             using (var zipFile = new ZipFile(ms, true))
             {
-                ClassicAssert.IsFalse(zipFile.IsStreamOwner, "Should NOT be stream owner when leaveOpen is true");
+                Assert.False(zipFile.IsStreamOwner, "Should NOT be stream owner when leaveOpen is true");
             }
 
-            ClassicAssert.IsFalse(ms.IsClosed, "Input stream should NOT be closed when leaveOpen is true");
+            Assert.False(ms.IsClosed, "Input stream should NOT be closed when leaveOpen is true");
         }
 
         ms.Seek(0, SeekOrigin.Begin);
@@ -1323,24 +1324,24 @@ public class ZipFileHandling : ZipBase
         {
             using (var zipFile = new ZipFile(ms, false))
             {
-                ClassicAssert.IsTrue(zipFile.IsStreamOwner, "Should be stream owner when leaveOpen is false");
+                Assert.True(zipFile.IsStreamOwner, "Should be stream owner when leaveOpen is false");
                 zipFile.IsStreamOwner = false;
-                ClassicAssert.IsFalse(zipFile.IsStreamOwner, "Should be able to set IsStreamOwner to false");
+                Assert.False(zipFile.IsStreamOwner, "Should be able to set IsStreamOwner to false");
             }
 
-            ClassicAssert.IsFalse(ms.IsClosed, "Input stream should NOT be closed when IsStreamOwner is false");
+            Assert.False(ms.IsClosed, "Input stream should NOT be closed when IsStreamOwner is false");
         }
     }
 
     /// <summary>
     /// Check that input file is closed when IsStreamOwner is true (default), or leaveOpen is false
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void FileStreamClosedWhenOwner()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         tempFile = Path.Combine(tempFile, "SharpZipFileStreamClosedWhenOwnerTest.Zip");
         if (File.Exists(tempFile))
@@ -1353,27 +1354,27 @@ public class ZipFileHandling : ZipBase
         // Stream should be closed when leaveOpen is unspecified
         {
             var fileStream = new TrackedFileStream(tempFile);
-            ClassicAssert.IsFalse(fileStream.IsClosed, "Input file should NOT be closed");
+            Assert.False(fileStream.IsClosed, "Input file should NOT be closed");
 
             using (var zipFile = new ZipFile(fileStream))
             {
-                ClassicAssert.IsTrue(zipFile.IsStreamOwner, "Should be stream owner by default");
+                Assert.True(zipFile.IsStreamOwner, "Should be stream owner by default");
             }
 
-            ClassicAssert.IsTrue(fileStream.IsClosed, "Input stream should be closed by default");
+            Assert.True(fileStream.IsClosed, "Input stream should be closed by default");
         }
 
         // Stream should be closed when leaveOpen is false
         {
             var fileStream = new TrackedFileStream(tempFile);
-            ClassicAssert.IsFalse(fileStream.IsClosed, "Input stream should NOT be closed");
+            Assert.False(fileStream.IsClosed, "Input stream should NOT be closed");
 
             using (var zipFile = new ZipFile(fileStream, false))
             {
-                ClassicAssert.IsTrue(zipFile.IsStreamOwner, "Should be stream owner when leaveOpen is false");
+                Assert.True(zipFile.IsStreamOwner, "Should be stream owner when leaveOpen is false");
             }
 
-            ClassicAssert.IsTrue(fileStream.IsClosed, "Input stream should be closed when leaveOpen is false");
+            Assert.True(fileStream.IsClosed, "Input stream should be closed when leaveOpen is false");
         }
 
         File.Delete(tempFile);
@@ -1382,12 +1383,12 @@ public class ZipFileHandling : ZipBase
     /// <summary>
     /// Check that input file is not closed when IsStreamOwner is false;
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void FileStreamNotClosedWhenNotOwner()
     {
         var tempFile = GetTempFilePath();
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         tempFile = Path.Combine(tempFile, "SharpZipFileStreamNotClosedWhenNotOwner.Zip");
         if (File.Exists(tempFile))
@@ -1400,29 +1401,29 @@ public class ZipFileHandling : ZipBase
         // Stream should not be closed when leaveOpen is true
         {
             using var fileStream = new TrackedFileStream(tempFile);
-            ClassicAssert.IsFalse(fileStream.IsClosed, "Input file should NOT be closed");
+            Assert.False(fileStream.IsClosed, "Input file should NOT be closed");
 
             using (var zipFile = new ZipFile(fileStream, true))
             {
-                ClassicAssert.IsFalse(zipFile.IsStreamOwner, "Should NOT be stream owner when leaveOpen is true");
+                Assert.False(zipFile.IsStreamOwner, "Should NOT be stream owner when leaveOpen is true");
             }
 
-            ClassicAssert.IsFalse(fileStream.IsClosed, "Input stream should NOT be closed when leaveOpen is true");
+            Assert.False(fileStream.IsClosed, "Input stream should NOT be closed when leaveOpen is true");
         }
 
         // Stream should not be closed when IsStreamOwner is set to false after opening
         {
             using var fileStream = new TrackedFileStream(tempFile);
-            ClassicAssert.IsFalse(fileStream.IsClosed, "Input file should NOT be closed");
+            Assert.False(fileStream.IsClosed, "Input file should NOT be closed");
 
             using (var zipFile = new ZipFile(fileStream, false))
             {
-                ClassicAssert.IsTrue(zipFile.IsStreamOwner, "Should be stream owner when leaveOpen is false");
+                Assert.True(zipFile.IsStreamOwner, "Should be stream owner when leaveOpen is false");
                 zipFile.IsStreamOwner = false;
-                ClassicAssert.IsFalse(zipFile.IsStreamOwner, "Should be able to set IsStreamOwner to false");
+                Assert.False(zipFile.IsStreamOwner, "Should be able to set IsStreamOwner to false");
             }
 
-            ClassicAssert.IsFalse(fileStream.IsClosed, "Input stream should NOT be closed when leaveOpen is true");
+            Assert.False(fileStream.IsClosed, "Input stream should NOT be closed when leaveOpen is true");
         }
 
         File.Delete(tempFile);
@@ -1431,30 +1432,32 @@ public class ZipFileHandling : ZipBase
     /// <summary>
     /// Check that input stream is only closed when construction fails and leaveOpen is false
     /// </summary>
-    [Test]
-    [Category("Zip")]
-    public void StreamClosedOnError([Values(true, false)] bool leaveOpen)
+    [Theory]
+    [Trait("Category", "Zip")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void StreamClosedOnError(bool leaveOpen)
     {
         var ms = new TrackedMemoryStream(new byte[32]);
 
-        ClassicAssert.IsFalse(ms.IsClosed, "Underlying stream should NOT be closed initially");
+        Assert.False(ms.IsClosed, "Underlying stream should NOT be closed initially");
         Assert.Throws<ZipException>(() =>
         {
             using var zf = new ZipFile(ms, leaveOpen);
-        }, "Should have failed to load the file");
+        });
 
         if (leaveOpen)
         {
-            ClassicAssert.IsFalse(ms.IsClosed, "Underlying stream should NOT be closed");
+            Assert.False(ms.IsClosed, "Underlying stream should NOT be closed");
         }
         else
         {
-            ClassicAssert.IsTrue(ms.IsClosed, "Underlying stream should be closed");
+            Assert.True(ms.IsClosed, "Underlying stream should be closed");
         }
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void HostSystemPersistedFromOutputStream()
     {
         using var ms = new MemoryStream();
@@ -1474,15 +1477,15 @@ public class ZipFileHandling : ZipBase
         using (var zis = new ZipFile(ms))
         {
             var ze = zis.GetEntry(fileName);
-            ClassicAssert.NotNull(ze);
+            Assert.NotNull(ze);
 
-            ClassicAssert.AreEqual((int)HostSystemID.Unix, ze.HostSystem);
-            ClassicAssert.AreEqual(ZipConstants.VersionMadeBy, ze.VersionMadeBy);
+            Assert.Equal((int)HostSystemID.Unix, ze.HostSystem);
+            Assert.Equal(ZipConstants.VersionMadeBy, ze.VersionMadeBy);
         }
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void HostSystemPersistedFromZipFile()
     {
         using var ms = new MemoryStream();
@@ -1503,10 +1506,10 @@ public class ZipFileHandling : ZipBase
         using (var zis = new ZipFile(ms))
         {
             var ze = zis.GetEntry(fileName);
-            ClassicAssert.NotNull(ze);
+            Assert.NotNull(ze);
 
-            ClassicAssert.AreEqual((int)HostSystemID.Unix, ze.HostSystem);
-            ClassicAssert.AreEqual(ZipConstants.VersionMadeBy, ze.VersionMadeBy);
+            Assert.Equal((int)HostSystemID.Unix, ze.HostSystem);
+            Assert.Equal(ZipConstants.VersionMadeBy, ze.VersionMadeBy);
         }
     }
 
@@ -1514,8 +1517,8 @@ public class ZipFileHandling : ZipBase
     /// Refs https://github.com/icsharpcode/SharpZipLib/issues/385
     /// Trying to add an AES Encrypted entry to ZipFile should throw as it isn't supported
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void AddingAnAESEncryptedEntryShouldThrow()
     {
         var memStream = new MemoryStream();
@@ -1527,15 +1530,15 @@ public class ZipFileHandling : ZipBase
 
         zof.BeginUpdate();
         var exception = Assert.Throws<NotSupportedException>(() => zof.Add(new StringMemoryDataSource("foo"), entry));
-        Assert.That(exception?.Message, Is.EqualTo("Creation of AES encrypted entries is not supported"));
+        Assert.Equal("Creation of AES encrypted entries is not supported", exception?.Message);
     }
 
     /// <summary>
     /// Test that we can add a file entry and set the name to sometihng other than the name of the file.
     /// </summary>
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
+    [Fact]
+    [Trait("Category", "Zip")]
+    [Trait("Category", "CreatesTempFile")]
     public void AddFileWithAlternateName()
     {
         // Create a unique name that will be different from the file name
@@ -1557,15 +1560,15 @@ public class ZipFileHandling : ZipBase
 
         using (var zipFile = new ZipFile(outputFile))
         {
-            Assert.That(zipFile.Count, Is.EqualTo(1));
+            Assert.Equal(1, zipFile.Count);
 
             var fileEntry = zipFile.GetEntry(fileName);
-            Assert.That(fileEntry, Is.Not.Null);
+            Assert.NotNull(fileEntry);
 
             using (var sr = new StreamReader(zipFile.GetInputStream(fileEntry)))
             {
                 var outputContent = sr.ReadToEnd();
-                ClassicAssert.AreEqual(inputContent, outputContent, "extracted content does not match source content");
+                Assert.Equal(inputContent, outputContent);
             }
         }
     }
@@ -1573,9 +1576,10 @@ public class ZipFileHandling : ZipBase
     /// <summary>
     /// Test a zip file using BZip2 compression.
     /// </summary>
-    [TestCase(true)]
-    [TestCase(false)]
-    [Category("Zip")]
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait("Category", "Zip")]
     public void ZipWithBZip2Compression(bool encryptEntries)
     {
         var password = "pwd";
@@ -1596,7 +1600,7 @@ public class ZipFileHandling : ZipBase
             var m2 = new StringMemoryDataSource("DeflateCompressed");
             f.Add(m2, "b.dat", CompressionMethod.Deflated);
             f.CommitUpdate();
-            Assert.That(f, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(f);
         }
 
         memStream.Seek(0, SeekOrigin.Begin);
@@ -1610,23 +1614,23 @@ public class ZipFileHandling : ZipBase
 
             {
                 var entry = f.GetEntry("a.dat");
-                Assert.That(entry.CompressionMethod, Is.EqualTo(CompressionMethod.BZip2), "Compression method should be BZip2");
-                Assert.That(entry.Version, Is.EqualTo(ZipConstants.VersionBZip2), "Entry version should be 46");
-                Assert.That(entry.IsCrypted, Is.EqualTo(encryptEntries));
+                Assert.Equal(CompressionMethod.BZip2, entry.CompressionMethod);
+                Assert.Equal(ZipConstants.VersionBZip2, entry.Version);
+                Assert.Equal(encryptEntries, entry.IsCrypted);
 
                 using var reader = new StreamReader(f.GetInputStream(entry));
                 var contents = reader.ReadToEnd();
-                Assert.That(contents, Is.EqualTo("BZip2Compressed"), "extract string must match original string");
+                Assert.Equal("BZip2Compressed", contents);
             }
 
             {
                 var entry = f.GetEntry("b.dat");
-                Assert.That(entry.CompressionMethod, Is.EqualTo(CompressionMethod.Deflated), "Compression method should be Deflated");
-                Assert.That(entry.IsCrypted, Is.EqualTo(encryptEntries));
+                Assert.Equal(CompressionMethod.Deflated, entry.CompressionMethod);
+                Assert.Equal(encryptEntries, entry.IsCrypted);
 
                 using var reader = new StreamReader(f.GetInputStream(entry));
                 var contents = reader.ReadToEnd();
-                Assert.That(contents, Is.EqualTo("DeflateCompressed"), "extract string must match original string");
+                Assert.Equal("DeflateCompressed", contents);
             }
         }
 
@@ -1636,8 +1640,8 @@ public class ZipFileHandling : ZipBase
     /// <summary>
     /// We should be able to read a bzip2 compressed zip file created by 7-zip.
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void ShouldReadBZip2ZipCreatedBy7Zip()
     {
         const string bZip2CompressedZipCreatedBy7Zip =
@@ -1655,19 +1659,19 @@ public class ZipFileHandling : ZipBase
         using var input = new MemoryStream(fileBytes, writable: false);
         using var zf = new ZipFile(input);
         var entry = zf.GetEntry("Hello.txt");
-        Assert.That(entry.CompressionMethod, Is.EqualTo(CompressionMethod.BZip2), "Compression method should be BZip2");
-        Assert.That(entry.Version, Is.EqualTo(ZipConstants.VersionBZip2), "Entry version should be 46");
+        Assert.Equal(CompressionMethod.BZip2, entry.CompressionMethod);
+        Assert.Equal(ZipConstants.VersionBZip2, entry.Version);
 
         using var reader = new StreamReader(zf.GetInputStream(entry));
         var contents = reader.ReadToEnd();
-        Assert.That(contents, Is.EqualTo(originalText), "extract string must match original string");
+        Assert.Equal(originalText, contents);
     }
 
     /// <summary>
     /// We should be able to read a bzip2 compressed / AES encrypted zip file created by 7-zip.
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void ShouldReadAESBZip2ZipCreatedBy7Zip()
     {
         const string bZip2CompressedZipCreatedBy7Zip =
@@ -1688,23 +1692,24 @@ public class ZipFileHandling : ZipBase
         zf.Password = "password";
 
         var entry = zf.GetEntry("Hello.txt");
-        Assert.That(entry.CompressionMethod, Is.EqualTo(CompressionMethod.BZip2), "Compression method should be BZip2");
-        Assert.That(entry.Version, Is.EqualTo(ZipConstants.VERSION_AES), "Entry version should be 51");
-        Assert.That(entry.IsCrypted, Is.True, "Entry should be encrypted");
-        Assert.That(entry.AESKeySize, Is.EqualTo(256), "AES Keysize should be 256");
+        Assert.Equal(CompressionMethod.BZip2, entry.CompressionMethod);
+        Assert.Equal(ZipConstants.VERSION_AES, entry.Version);
+        Assert.True(entry.IsCrypted);
+        Assert.Equal(256, entry.AESKeySize);
 
         using var reader = new StreamReader(zf.GetInputStream(entry));
         var contents = reader.ReadToEnd();
-        Assert.That(contents, Is.EqualTo(originalText), "extract string must match original string");
+        Assert.Equal(originalText, contents);
     }
 
     /// <summary>
     /// Test for https://github.com/icsharpcode/SharpZipLib/issues/147, when deleting items in a zip
     /// </summary>
     /// <param name="useZip64">Whether Zip64 should be used in the test archive</param>
-    [TestCase(UseZip64.On)]
-    [TestCase(UseZip64.Off)]
-    [Category("Zip")]
+    [Theory]
+    [InlineData(UseZip64.On)]
+    [InlineData(UseZip64.Off)]
+    [Trait("Category", "Zip")]
     public void TestDescriptorUpdateOnDelete(UseZip64 useZip64)
     {
         MemoryStream msw = new MemoryStreamWithoutSeek();
@@ -1720,7 +1725,7 @@ public class ZipFileHandling : ZipBase
         }
 
         var zipData = msw.ToArray();
-        Assert.That(zipData, Does.PassTestArchive());
+        ZipTesting.AssertPassesTestArchive(zipData);
 
         using (var memoryStream = new MemoryStream(zipData))
         {
@@ -1735,7 +1740,7 @@ public class ZipFileHandling : ZipBase
 
             using (var zipFile = new ZipFile(memoryStream, leaveOpen: true))
             {
-                Assert.That(zipFile, Does.PassTestArchive());
+                ZipTesting.AssertPassesTestArchive(zipFile);
             }
         }
     }
@@ -1744,9 +1749,10 @@ public class ZipFileHandling : ZipBase
     /// Test for https://github.com/icsharpcode/SharpZipLib/issues/147, when adding items to a zip
     /// </summary>
     /// <param name="useZip64">Whether Zip64 should be used in the test archive</param>
-    [TestCase(UseZip64.On)]
-    [TestCase(UseZip64.Off)]
-    [Category("Zip")]
+    [Theory]
+    [InlineData(UseZip64.On)]
+    [InlineData(UseZip64.Off)]
+    [Trait("Category", "Zip")]
     public void TestDescriptorUpdateOnAdd(UseZip64 useZip64)
     {
         MemoryStream msw = new MemoryStreamWithoutSeek();
@@ -1759,7 +1765,7 @@ public class ZipFileHandling : ZipBase
         }
 
         var zipData = msw.ToArray();
-        Assert.That(zipData, Does.PassTestArchive());
+        ZipTesting.AssertPassesTestArchive(zipData);
 
         using (var memoryStream = new MemoryStream())
         {
@@ -1776,7 +1782,7 @@ public class ZipFileHandling : ZipBase
 
             using (var zipFile = new ZipFile(memoryStream, leaveOpen: true))
             {
-                Assert.That(zipFile, Does.PassTestArchive());
+                ZipTesting.AssertPassesTestArchive(zipFile);
             }
         }
     }
@@ -1784,8 +1790,8 @@ public class ZipFileHandling : ZipBase
     /// <summary>
     /// Check that Zip files can be created with an empty file name
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void HandlesEmptyFileName()
     {
         using var ms = new MemoryStream();
@@ -1798,8 +1804,8 @@ public class ZipFileHandling : ZipBase
         using (var zis = new ZipInputStream(ms){IsStreamOwner = false})
         {
             var entry = zis.GetNextEntry();
-            Assert.That(entry.Name, Is.Empty);
-            Assert.That(zis.ReadBytes(64).Length, Is.EqualTo(64));
+            Assert.Empty(entry.Name);
+            Assert.Equal(64, zis.ReadBytes(64).Length);
         }
     }
 }

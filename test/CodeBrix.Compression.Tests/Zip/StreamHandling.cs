@@ -1,28 +1,29 @@
-﻿using CodeBrix.Compression.Core;
+using CodeBrix.Compression.Core;
 using CodeBrix.Compression.Tests.TestSupport;
 using CodeBrix.Compression.Zip;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Does = CodeBrix.Compression.Tests.TestSupport.Does;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Zip;
 
 /// <summary>
 /// This contains newer tests for stream handling. Much of this is still in GeneralHandling
 /// </summary>
-[TestFixture]
-public class StreamHandling : ZipBase
+[Trait("Category", "Zip")]
+public class StreamHandling : ZipBase, IDisposable
 {
     private TestTraceListener Listener;
-    [SetUp]
-    public void Init() => Trace.Listeners.Add(Listener = new TestTraceListener(TestContext.Out));
-    [TearDown]
-    public void Deinit() => Trace.Listeners.Remove(Listener);
+
+    public StreamHandling()
+    {
+        Trace.Listeners.Add(Listener = new TestTraceListener(Console.Out));
+    }
+
+    public void Dispose() => Trace.Listeners.Remove(Listener);
 
     private void MustFailRead(Stream s, byte[] buffer, int offset, int count)
     {
@@ -35,11 +36,10 @@ public class StreamHandling : ZipBase
         {
             exception = true;
         }
-        ClassicAssert.IsTrue(exception, "Read should fail");
+        Assert.True(exception, "Read should fail");
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void ParameterHandling()
     {
         var buffer = new byte[10];
@@ -66,17 +66,16 @@ public class StreamHandling : ZipBase
         MustFailRead(inStream, emptyBuffer, 0, 1);
 
         var bytesRead = inStream.Read(buffer, 10, 0);
-        ClassicAssert.AreEqual(0, bytesRead, "Should be able to read zero bytes");
+        Assert.Equal(0, bytesRead);
 
         bytesRead = inStream.Read(emptyBuffer, 0, 0);
-        ClassicAssert.AreEqual(0, bytesRead, "Should be able to read zero bytes");
+        Assert.Equal(0, bytesRead);
     }
 
     /// <summary>
     /// Check that Zip64 descriptor is added to an entry OK.
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void Zip64Descriptor()
     {
         MemoryStream msw = new MemoryStreamWithoutSeek();
@@ -88,7 +87,7 @@ public class StreamHandling : ZipBase
         outStream.WriteByte(89);
         outStream.Close();
 
-        Assert.That(msw.ToArray(), Does.PassTestArchive());
+        ZipTesting.AssertPassesTestArchive(msw.ToArray());
 
         msw = new MemoryStreamWithoutSeek();
         outStream = new ZipOutputStream(msw);
@@ -99,11 +98,10 @@ public class StreamHandling : ZipBase
         outStream.WriteByte(89);
         outStream.Close();
 
-        Assert.That(msw.ToArray(), Does.PassTestArchive());
+        ZipTesting.AssertPassesTestArchive(msw.ToArray());
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void ReadAndWriteZip64NonSeekable()
     {
         MemoryStream msw = new MemoryStreamWithoutSeek();
@@ -122,7 +120,7 @@ public class StreamHandling : ZipBase
         }
 
         var msBytes = msw.ToArray();
-        Assert.That(msBytes, Does.PassTestArchive());
+        ZipTesting.AssertPassesTestArchive(msBytes);
 
         using (var zis = new ZipInputStream(new MemoryStream(msBytes)))
         {
@@ -141,8 +139,7 @@ public class StreamHandling : ZipBase
     /// <summary>
     /// Check that adding an entry with no data and Zip64 works OK
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void EntryWithNoDataAndZip64()
     {
         MemoryStream msw = new MemoryStreamWithoutSeek();
@@ -157,15 +154,14 @@ public class StreamHandling : ZipBase
         outStream.Finish();
         outStream.Close();
 
-        Assert.That(msw.ToArray(), Does.PassTestArchive());
+        ZipTesting.AssertPassesTestArchive(msw.ToArray());
     }
 
     /// <summary>
     /// Empty zip entries can be created and read?
     /// </summary>
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void EmptyZipEntries()
     {
         var ms = new MemoryStream();
@@ -198,15 +194,14 @@ public class StreamHandling : ZipBase
             }
         }
         inStream.Close();
-        ClassicAssert.Zero(extractCount, "No data should be read from empty entries");
+        Assert.Equal(0, extractCount);
     }
 
     /// <summary>
     /// Test that calling Write with 0 bytes behaves.
     /// See issue @ https://github.com/icsharpcode/SharpZipLib/issues/123.
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void TestZeroByteWrite()
     {
         using var ms = new MemoryStreamWithoutSeek();
@@ -238,13 +233,15 @@ public class StreamHandling : ZipBase
                     extractCount += numRead;
                 }
             }
-            ClassicAssert.Zero(extractCount, "No data should be read from empty entries");
+            Assert.Equal(0, extractCount);
         }
     }
 
-    [Test]
-    [Category("Zip")]
-    public void WriteZipStreamWithNoCompression([Values(0, 1, 256)] int contentLength)
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(256)]
+    public void WriteZipStreamWithNoCompression(int contentLength)
     {
         var buffer = new byte[255];
 
@@ -270,23 +267,23 @@ public class StreamHandling : ZipBase
             var inputBytes = File.ReadAllBytes(inputFile);
 
             var entry = zf.GetEntry(inputFileName);
-            ClassicAssert.IsNotNull(entry, "No entry matching source file \"{0}\" found in archive, found \"{1}\"", inputFileName, zf[0].Name);
+            Assert.NotNull(entry);
 
-            Assert.DoesNotThrow(() =>
+            var ex = Record.Exception(() =>
             {
                 using var entryStream = zf.GetInputStream(entry);
                 var outputBytes = new byte[entryStream.Length];
                 entryStream.ReadExactly(outputBytes, 0, outputBytes.Length);
 
-                ClassicAssert.AreEqual(inputBytes, outputBytes, "Archive content does not match the source content");
-            }, "Failed to locate entry stream in archive");
+                Assert.Equal(inputBytes, outputBytes);
+            });
+            Assert.True(ex == null, $"Failed to locate entry stream in archive: {ex}");
 
-            Assert.That(zf, Does.PassTestArchive());
+            ZipTesting.AssertPassesTestArchive(zf);
         }
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void ZipEntryFileNameAutoClean()
     {
         using var dummyZip = Utils.GetDummyFile(0);
@@ -307,15 +304,14 @@ public class StreamHandling : ZipBase
         using (var zf = new ZipFile(dummyZip))
         {
             // The ZipEntry name should have been automatically cleaned
-            ClassicAssert.AreEqual(ZipEntry.CleanName(inputFile), zf[0].Name);
+            Assert.Equal(ZipEntry.CleanName(inputFile), zf[0].Name);
         }
     }
 
     /// <summary>
     /// Empty zips can be created and read?
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void CreateAndReadEmptyZip()
     {
         var ms = new MemoryStream();
@@ -334,53 +330,53 @@ public class StreamHandling : ZipBase
     /// <summary>
     /// Base stream is closed when IsOwner is true ( default);
     /// </summary>
-    [Test]
+    [Fact]
     public void BaseClosedWhenOwner()
     {
         var ms = new TrackedMemoryStream();
 
-        ClassicAssert.IsFalse(ms.IsClosed, "Underlying stream should NOT be closed");
+        Assert.False(ms.IsClosed, "Underlying stream should NOT be closed");
 
         using (var stream = new ZipOutputStream(ms))
         {
-            ClassicAssert.IsTrue(stream.IsStreamOwner, "Should be stream owner by default");
+            Assert.True(stream.IsStreamOwner, "Should be stream owner by default");
         }
 
-        ClassicAssert.IsTrue(ms.IsClosed, "Underlying stream should be closed");
+        Assert.True(ms.IsClosed, "Underlying stream should be closed");
     }
 
     /// <summary>
     /// Check that base stream is not closed when IsOwner is false;
     /// </summary>
-    [Test]
+    [Fact]
     public void BaseNotClosedWhenNotOwner()
     {
         var ms = new TrackedMemoryStream();
 
-        ClassicAssert.IsFalse(ms.IsClosed, "Underlying stream should NOT be closed");
+        Assert.False(ms.IsClosed, "Underlying stream should NOT be closed");
 
         using (var stream = new ZipOutputStream(ms))
         {
-            ClassicAssert.IsTrue(stream.IsStreamOwner, "Should be stream owner by default");
+            Assert.True(stream.IsStreamOwner, "Should be stream owner by default");
             stream.IsStreamOwner = false;
         }
-        ClassicAssert.IsFalse(ms.IsClosed, "Underlying stream should still NOT be closed");
+        Assert.False(ms.IsClosed, "Underlying stream should still NOT be closed");
     }
 
     /// <summary>
     /// Check that base stream is not closed when IsOwner is false;
     /// </summary>
-    [Test]
+    [Fact]
     public void BaseClosedAfterFailure()
     {
         var ms = new TrackedMemoryStream(new byte[32]);
 
-        ClassicAssert.IsFalse(ms.IsClosed, "Underlying stream should NOT be closed initially");
+        Assert.False(ms.IsClosed, "Underlying stream should NOT be closed initially");
         var blewUp = false;
         try
         {
             using var stream = new ZipOutputStream(ms);
-            ClassicAssert.IsTrue(stream.IsStreamOwner, "Should be stream owner by default");
+            Assert.True(stream.IsStreamOwner, "Should be stream owner by default");
             try
             {
                 stream.PutNextEntry(new ZipEntry("Tiny"));
@@ -388,7 +384,7 @@ public class StreamHandling : ZipBase
             }
             finally
             {
-                ClassicAssert.IsFalse(ms.IsClosed, "Stream should still not be closed.");
+                Assert.False(ms.IsClosed, "Stream should still not be closed.");
                 stream.Close();
                 Assert.Fail("Exception not thrown");
             }
@@ -398,14 +394,12 @@ public class StreamHandling : ZipBase
             blewUp = true;
         }
 
-        ClassicAssert.IsTrue(blewUp, "Should have failed to write to stream");
-        ClassicAssert.IsTrue(ms.IsClosed, "Underlying stream should be closed");
+        Assert.True(blewUp, "Should have failed to write to stream");
+        Assert.True(ms.IsClosed, "Underlying stream should be closed");
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("Performance")]
-    [Explicit("Long Running")]
+    [Fact(Explicit = true, Skip = "Long Running")]
+    [Trait("Category", "Performance")]
     public void WriteThroughput()
     {
         PerformanceTesting.TestWrite(0x10000000, bs =>
@@ -416,10 +410,8 @@ public class StreamHandling : ZipBase
         });
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("Performance")]
-    [Explicit("Long Running")]
+    [Fact(Explicit = true, Skip = "Long Running")]
+    [Trait("Category", "Performance")]
     public void SingleLargeEntry()
     {
         const string entryName = "CantSeek";
@@ -431,8 +423,8 @@ public class StreamHandling : ZipBase
                 var zis = new ZipInputStream(bs);
                 var entry = zis.GetNextEntry();
 
-                ClassicAssert.AreEqual(entryName, entry.Name);
-                ClassicAssert.IsTrue((entry.Flags & (int)GeneralBitFlags.Descriptor) != 0);
+                Assert.Equal(entryName, entry.Name);
+                Assert.True((entry.Flags & (int)GeneralBitFlags.Descriptor) != 0);
                 return zis;
             },
             output: bs =>
@@ -452,8 +444,7 @@ public class StreamHandling : ZipBase
     /// <summary>
     /// Should fail to read a zip with BZip2 compression
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void ShouldReadBZip2EntryButNotDecompress()
     {
         var fileBytes = Convert.FromBase64String(BZip2CompressedZip);
@@ -462,12 +453,12 @@ public class StreamHandling : ZipBase
         var zis = new ZipInputStream(input);
         var entry = zis.GetNextEntry();
 
-        Assert.That(entry.Name, Is.EqualTo("a.dat"), "Should be able to get entry name");
-        Assert.That(entry.CompressionMethod, Is.EqualTo(CompressionMethod.BZip2), "Entry should be BZip2 compressed");
-        Assert.That(zis.CanDecompressEntry, Is.False, "Should not be able to decompress BZip2 entry");
+        Assert.Equal("a.dat", entry.Name);
+        Assert.Equal(CompressionMethod.BZip2, entry.CompressionMethod);
+        Assert.False(zis.CanDecompressEntry, "Should not be able to decompress BZip2 entry");
 
         var buffer = new byte[1];
-        Assert.Throws<ZipException>(() => zis.ReadExactly(buffer, 0, 1), "Trying to read the stream should throw");
+        Assert.Throws<ZipException>(() => zis.ReadExactly(buffer, 0, 1));
     }
 
     /// <summary>
@@ -475,8 +466,7 @@ public class StreamHandling : ZipBase
     /// Should be able to read entries whose names contain invalid filesystem
     /// characters
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void ShouldBeAbleToReadEntriesWithInvalidFileNames()
     {
         var testFileName = "<A|B?C>.txt";
@@ -493,15 +483,14 @@ public class StreamHandling : ZipBase
         using (var inStream = new ZipInputStream(memoryStream))
         {
             var entry = inStream.GetNextEntry();
-            Assert.That(entry.Name, Is.EqualTo(testFileName), "output name must match original name");
+            Assert.Equal(testFileName, entry.Name);
         }
     }
 
     /// <summary>
     /// Test for https://github.com/icsharpcode/SharpZipLib/issues/507
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void AddingAnAESEntryWithNoPasswordShouldThrow()
     {
         using var memoryStream = new MemoryStream();
@@ -511,8 +500,7 @@ public class StreamHandling : ZipBase
         Assert.Throws<InvalidOperationException>(() => outStream.PutNextEntry(newEntry));
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void ShouldThrowDescriptiveExceptionOnUncompressedDescriptorEntry()
     {
         using var ms = new MemoryStreamWithoutSeek();
@@ -538,16 +526,17 @@ public class StreamHandling : ZipBase
             var buf = new byte[32];
             zis.GetNextEntry();
 
-            Assert.Throws(typeof(StreamUnsupportedException), () =>
+            Assert.Throws<StreamUnsupportedException>(() =>
             {
                 zis.ReadExactly(buf, 0, buf.Length);
             });
         }
     }
-		
-    [Test]
-    [Category("Zip")]
-    public void IteratingOverEntriesInDirectUpdatedArchive([Values(0x0, 0x80)] byte padding)
+
+    [Theory]
+    [InlineData((byte)0x0)]
+    [InlineData((byte)0x80)]
+    public void IteratingOverEntriesInDirectUpdatedArchive(byte padding)
     {
         using var tempFile = new TempFile();
         using (var zf = ZipFile.Create(tempFile))
@@ -569,14 +558,14 @@ public class StreamHandling : ZipBase
         using (var zis = new ZipInputStream(fs))
         {
             var firstEntry = zis.GetNextEntry();
-            ClassicAssert.NotNull(firstEntry);
-            ClassicAssert.AreEqual(1, firstEntry.CompressedSize);
-            ClassicAssert.AreEqual(1, firstEntry.Size);
-					
+            Assert.NotNull(firstEntry);
+            Assert.Equal(1, firstEntry.CompressedSize);
+            Assert.Equal(1, firstEntry.Size);
+
             var secondEntry = zis.GetNextEntry();
-            ClassicAssert.NotNull(secondEntry, "Zip entry following padding not found");
+            Assert.NotNull(secondEntry);
             var contents = new StreamReader(zis, Encoding.UTF8, false, 128, true).ReadToEnd();
-            ClassicAssert.AreEqual("fileContents", contents);
+            Assert.Equal("fileContents", contents);
         }
     }
 }

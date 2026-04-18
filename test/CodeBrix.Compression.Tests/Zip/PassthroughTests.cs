@@ -1,19 +1,18 @@
-﻿using CodeBrix.Compression.Checksum;
+using CodeBrix.Compression.Checksum;
+using CodeBrix.Compression.Tests.TestSupport;
 using CodeBrix.Compression.Zip;
-using NUnit.Framework;
 using System;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
-using Does = CodeBrix.Compression.Tests.TestSupport.Does;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Zip;
 
-[TestFixture]
+[Trait("Category", "Zip")]
 public class PassthroughTests
 {
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void AddingValidPrecompressedEntryToZipOutputStream()
     {
         using var ms = new MemoryStream();
@@ -34,7 +33,7 @@ public class PassthroughTests
             compressedData.CopyTo(outStream);
         }
 
-        Assert.That(ms.ToArray(), Does.PassTestArchive());
+        ZipTesting.AssertPassesTestArchive(ms.ToArray());
     }
 
     private static (MemoryStream, Crc32, int) CreateDeflatedData()
@@ -45,7 +44,7 @@ public class PassthroughTests
         crc.Update(data);
 
         var compressedData = new MemoryStream();
-        using(var gz = new DeflateStream(compressedData, CompressionMode.Compress, leaveOpen: true)) 
+        using(var gz = new DeflateStream(compressedData, CompressionMode.Compress, leaveOpen: true))
         {
             gz.Write(data, 0, data.Length);
         }
@@ -54,8 +53,7 @@ public class PassthroughTests
         return (compressedData, crc, data.Length);
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void AddingPrecompressedEntryToZipOutputStreamWithInvalidSize()
     {
         using var outStream = new ZipOutputStream(new MemoryStream());
@@ -67,16 +65,15 @@ public class PassthroughTests
             Crc = (uint)crc.Value,
             CompressedSize = compressedData.Length,
         };
-			
+
         Assert.Throws<ZipException>(() =>
         {
             outStream.PutNextPassthroughEntry(entry);
         });
     }
-		
-		
-    [Test]
-    [Category("Zip")]
+
+
+    [Fact]
     public void AddingPrecompressedEntryToZipOutputStreamWithInvalidCompressedSize()
     {
         using var outStream = new ZipOutputStream(new MemoryStream());
@@ -88,15 +85,14 @@ public class PassthroughTests
             Size = size,
             Crc = (uint)crc.Value,
         };
-			
+
         Assert.Throws<ZipException>(() =>
         {
             outStream.PutNextPassthroughEntry(entry);
         });
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void AddingPrecompressedEntryToZipOutputStreamWithNonSupportedMethod()
     {
         using var outStream = new ZipOutputStream(new MemoryStream());
@@ -109,15 +105,14 @@ public class PassthroughTests
             Crc = (uint)crc.Value,
             CompressedSize = compressedData.Length,
         };
-			
+
         Assert.Throws<NotImplementedException>(() =>
         {
             outStream.PutNextPassthroughEntry(entry);
         });
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void AddingPrecompressedEntryToZipOutputStreamWithEncryption()
     {
         using var outStream = new ZipOutputStream(new MemoryStream());
@@ -130,7 +125,7 @@ public class PassthroughTests
             Crc = (uint)crc.Value,
             CompressedSize = compressedData.Length,
         };
-			
+
         Assert.Throws<NotImplementedException>(() =>
         {
             outStream.PutNextPassthroughEntry(entry);

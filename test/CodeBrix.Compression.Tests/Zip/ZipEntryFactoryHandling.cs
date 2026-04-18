@@ -1,12 +1,11 @@
-﻿using CodeBrix.Compression.Zip;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
+using CodeBrix.Compression.Zip;
 using System;
 using System.IO;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Zip;
 
-[TestFixture]
+[Trait("Category", "Zip")]
 public class ZipEntryFactoryHandling : ZipBase
 {
     // TODO: Complete testing for ZipEntryFactory
@@ -14,39 +13,37 @@ public class ZipEntryFactoryHandling : ZipBase
     // FileEntry creation and retrieval of information
     // DirectoryEntry creation and retrieval of information.
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void Defaults()
     {
         var testStart = DateTime.Now;
         var f = new ZipEntryFactory();
-        ClassicAssert.IsNotNull(f.NameTransform);
-        ClassicAssert.AreEqual(-1, f.GetAttributes);
-        ClassicAssert.AreEqual(0, f.SetAttributes);
-        ClassicAssert.AreEqual(ZipEntryFactory.TimeSetting.LastWriteTime, f.Setting);
+        Assert.NotNull(f.NameTransform);
+        Assert.Equal(-1, f.GetAttributes);
+        Assert.Equal(0, f.SetAttributes);
+        Assert.Equal(ZipEntryFactory.TimeSetting.LastWriteTime, f.Setting);
 
-        ClassicAssert.LessOrEqual(testStart, f.FixedDateTime);
-        ClassicAssert.GreaterOrEqual(DateTime.Now, f.FixedDateTime);
+        Assert.True(testStart <= f.FixedDateTime);
+        Assert.True(DateTime.Now >= f.FixedDateTime);
 
         f = new ZipEntryFactory(ZipEntryFactory.TimeSetting.LastAccessTimeUtc);
-        ClassicAssert.IsNotNull(f.NameTransform);
-        ClassicAssert.AreEqual(-1, f.GetAttributes);
-        ClassicAssert.AreEqual(0, f.SetAttributes);
-        ClassicAssert.AreEqual(ZipEntryFactory.TimeSetting.LastAccessTimeUtc, f.Setting);
-        ClassicAssert.LessOrEqual(testStart, f.FixedDateTime);
-        ClassicAssert.GreaterOrEqual(DateTime.Now, f.FixedDateTime);
+        Assert.NotNull(f.NameTransform);
+        Assert.Equal(-1, f.GetAttributes);
+        Assert.Equal(0, f.SetAttributes);
+        Assert.Equal(ZipEntryFactory.TimeSetting.LastAccessTimeUtc, f.Setting);
+        Assert.True(testStart <= f.FixedDateTime);
+        Assert.True(DateTime.Now >= f.FixedDateTime);
 
         var fixedDate = new DateTime(1999, 1, 2);
         f = new ZipEntryFactory(fixedDate);
-        ClassicAssert.IsNotNull(f.NameTransform);
-        ClassicAssert.AreEqual(-1, f.GetAttributes);
-        ClassicAssert.AreEqual(0, f.SetAttributes);
-        ClassicAssert.AreEqual(ZipEntryFactory.TimeSetting.Fixed, f.Setting);
-        ClassicAssert.AreEqual(fixedDate, f.FixedDateTime);
+        Assert.NotNull(f.NameTransform);
+        Assert.Equal(-1, f.GetAttributes);
+        Assert.Equal(0, f.SetAttributes);
+        Assert.Equal(ZipEntryFactory.TimeSetting.Fixed, f.Setting);
+        Assert.Equal(fixedDate, f.FixedDateTime);
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void CreateInMemoryValues()
     {
         var tempFile = "bingo:";
@@ -69,32 +66,32 @@ public class ZipEntryFactoryHandling : ZipBase
         combinedAttributes = (int)FileAttributes.ReadOnly;
 
         entry = factory.MakeFileEntry(tempFile, false);
-        ClassicAssert.IsTrue(TestHelper.CompareDosDateTimes(startTime, entry.DateTime) <= 0, "Create time failure");
-        ClassicAssert.AreEqual(entry.ExternalFileAttributes, combinedAttributes);
-        ClassicAssert.AreEqual(-1, entry.Size);
+        Assert.True(TestHelper.CompareDosDateTimes(startTime, entry.DateTime) <= 0, "Create time failure");
+        Assert.Equal(entry.ExternalFileAttributes, combinedAttributes);
+        Assert.Equal(-1, entry.Size);
 
         factory.FixedDateTime = startTime;
         factory.Setting = ZipEntryFactory.TimeSetting.Fixed;
         entry = factory.MakeFileEntry(tempFile, false);
-        ClassicAssert.AreEqual(0, TestHelper.CompareDosDateTimes(startTime, entry.DateTime), "Access time failure");
-        ClassicAssert.AreEqual(-1, entry.Size);
+        Assert.Equal(0, TestHelper.CompareDosDateTimes(startTime, entry.DateTime));
+        Assert.Equal(-1, entry.Size);
 
         factory.Setting = ZipEntryFactory.TimeSetting.LastWriteTime;
         entry = factory.MakeFileEntry(tempFile, false);
-        ClassicAssert.IsTrue(TestHelper.CompareDosDateTimes(startTime, entry.DateTime) <= 0, "Write time failure");
-        ClassicAssert.AreEqual(-1, entry.Size);
+        Assert.True(TestHelper.CompareDosDateTimes(startTime, entry.DateTime) <= 0, "Write time failure");
+        Assert.Equal(-1, entry.Size);
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
-    [Platform("Win32NT")]
+    [Fact]
+    [Trait("Category", "CreatesTempFile")]
     public void CreatedFileEntriesUsesExpectedAttributes()
     {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows only");
         var tempDir = GetTempFilePath();
         if (tempDir == null)
         {
-            Assert.Inconclusive("No permission to execute this test?");
+            Assert.Skip("No permission to execute this test?");
+            return;
         }
 
         tempDir = Path.Combine(tempDir, "SharpZipTest");
@@ -103,7 +100,7 @@ public class ZipEntryFactoryHandling : ZipBase
         try
         {
             var tempFile = Path.Combine(tempDir, "SharpZipTest.Zip");
-				
+
             using (var f = File.Create(tempFile, 1024))
             {
                 f.WriteByte(0);
@@ -125,8 +122,8 @@ public class ZipEntryFactoryHandling : ZipBase
                 combinedAttributes = (int)(FileAttributes.ReadOnly | FileAttributes.Hidden);
 
                 entry = factory.MakeFileEntry(tempFile);
-                ClassicAssert.AreEqual(entry.ExternalFileAttributes, combinedAttributes);
-                ClassicAssert.AreEqual(1, entry.Size);
+                Assert.Equal(entry.ExternalFileAttributes, combinedAttributes);
+                Assert.Equal(1, entry.Size);
             }
             finally
             {
@@ -137,21 +134,21 @@ public class ZipEntryFactoryHandling : ZipBase
         {
             Directory.Delete(tempDir, true);
         }
-			
+
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
-    [TestCase(ZipEntryFactory.TimeSetting.CreateTime)]
-    [TestCase(ZipEntryFactory.TimeSetting.LastAccessTime)]
-    [TestCase(ZipEntryFactory.TimeSetting.LastWriteTime)]
+    [Theory]
+    [Trait("Category", "CreatesTempFile")]
+    [InlineData(ZipEntryFactory.TimeSetting.CreateTime)]
+    [InlineData(ZipEntryFactory.TimeSetting.LastAccessTime)]
+    [InlineData(ZipEntryFactory.TimeSetting.LastWriteTime)]
     public void CreatedFileEntriesUsesExpectedTime(ZipEntryFactory.TimeSetting timeSetting)
     {
         var tempDir = GetTempFilePath();
         if (tempDir == null)
         {
-            Assert.Inconclusive("No permission to execute this test?");
+            Assert.Skip("No permission to execute this test?");
+            return;
         }
 
         tempDir = Path.Combine(tempDir, "SharpZipTest");
@@ -165,7 +162,7 @@ public class ZipEntryFactoryHandling : ZipBase
         {
 
             var tempFile = Path.Combine(tempDir, "SharpZipTest.Zip");
-				
+
             using (var f = File.Create(tempFile, 1024))
             {
                 f.WriteByte(0);
@@ -189,7 +186,8 @@ public class ZipEntryFactoryHandling : ZipBase
             }
 
             if(fileTime != expectedTime) {
-                Assert.Inconclusive("File time could not be altered");
+                Assert.Skip("File time could not be altered");
+                return;
             }
 
             var factory = new ZipEntryFactory();
@@ -197,29 +195,29 @@ public class ZipEntryFactoryHandling : ZipBase
             factory.Setting = timeSetting;
 
             var entry = factory.MakeFileEntry(tempFile);
-            ClassicAssert.AreEqual(expectedTime, entry.DateTime);
-            ClassicAssert.AreEqual(1, entry.Size);
+            Assert.Equal(expectedTime, entry.DateTime);
+            Assert.Equal(1, entry.Size);
 
         }
         finally
         {
             Directory.Delete(tempDir, true);
         }
-			
+
     }
 
-    [Test]
-    [Category("Zip")]
-    [Category("CreatesTempFile")]
-    [TestCase(ZipEntryFactory.TimeSetting.CreateTime)]
-    [TestCase(ZipEntryFactory.TimeSetting.LastAccessTime)]
-    [TestCase(ZipEntryFactory.TimeSetting.LastWriteTime)]
+    [Theory]
+    [Trait("Category", "CreatesTempFile")]
+    [InlineData(ZipEntryFactory.TimeSetting.CreateTime)]
+    [InlineData(ZipEntryFactory.TimeSetting.LastAccessTime)]
+    [InlineData(ZipEntryFactory.TimeSetting.LastWriteTime)]
     public void CreatedDirectoryEntriesUsesExpectedTime(ZipEntryFactory.TimeSetting timeSetting)
     {
         var tempDir = GetTempFilePath();
         if (tempDir == null)
         {
-            Assert.Inconclusive("No permission to execute this test?");
+            Assert.Skip("No permission to execute this test?");
+            return;
         }
 
         tempDir = Path.Combine(tempDir, "SharpZipTest");
@@ -233,7 +231,7 @@ public class ZipEntryFactoryHandling : ZipBase
         {
 
             var tempFile = Path.Combine(tempDir, "SharpZipTest.Zip");
-				
+
             using (var f = File.Create(tempFile, 1024))
             {
                 f.WriteByte(0);
@@ -257,7 +255,8 @@ public class ZipEntryFactoryHandling : ZipBase
             }
 
             if(dirTime != expectedTime) {
-                Assert.Inconclusive("Directory time could not be altered");
+                Assert.Skip("Directory time could not be altered");
+                return;
             }
 
             var factory = new ZipEntryFactory();
@@ -265,12 +264,12 @@ public class ZipEntryFactoryHandling : ZipBase
             factory.Setting = timeSetting;
 
             var entry = factory.MakeDirectoryEntry(tempDir);
-            ClassicAssert.AreEqual(expectedTime, entry.DateTime);
+            Assert.Equal(expectedTime, entry.DateTime);
         }
         finally
         {
             Directory.Delete(tempDir, true);
         }
-			
+
     }
 }

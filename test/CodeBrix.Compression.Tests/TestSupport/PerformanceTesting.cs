@@ -1,5 +1,4 @@
-﻿using NUnit.Framework.Legacy;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.ExceptionServices;
@@ -53,12 +52,12 @@ internal static class PerformanceTesting
 
                 if (!state.token.IsCancellationRequested)
                 {
-                    ClassicAssert.IsFalse(state.baseStream.CanRead, "Base Stream should be closed");
+                    Xunit.Assert.False(state.baseStream.CanRead, "Base Stream should be closed");
 
                     // This shouldnt read any data but should read the footer
                     var buffer = new byte[1];
                     var readBytes = state.stream.Read(buffer, 0, 1);
-                    ClassicAssert.LessOrEqual(readBytes, 0, "Stream should be empty");
+                    Xunit.Assert.True(readBytes <= 0, "Stream should be empty");
                 }
 
                 // Dispose of the input stream
@@ -129,7 +128,7 @@ internal static class PerformanceTesting
         //ClassicAssert.IsTrue(writerJoined, "Timed out waiting for reader thread to join");
         //ClassicAssert.IsTrue(readerJoined, "Timed out waiting for writer thread to join");
 
-        ClassicAssert.IsFalse(cts.IsCancellationRequested, "Threads were cancelled before completing execution");
+        Xunit.Assert.False(cts.IsCancellationRequested, "Threads were cancelled before completing execution");
 
         var elapsed = sw.Elapsed;
         var testSize = size / ByteToMB;

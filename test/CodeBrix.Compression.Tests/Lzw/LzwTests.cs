@@ -1,16 +1,14 @@
-﻿using CodeBrix.Compression.Lzw;
+using CodeBrix.Compression.Lzw;
 using CodeBrix.Compression.Tests.TestSupport;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System.IO;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Lzw;
 
-[TestFixture]
+[Trait("Category", "LZW")]
 public class LzwTestSuite
 {
-    [Test]
-    [Category("LZW")]
+    [Fact]
     public void ZeroLengthInputStream()
     {
         var lis = new LzwInputStream(new MemoryStream());
@@ -24,34 +22,33 @@ public class LzwTestSuite
             exception = true;
         }
 
-        ClassicAssert.IsTrue(exception, "reading from an empty stream should cause an exception");
+        Assert.True(exception, "reading from an empty stream should cause an exception");
     }
 
-    [Test]
-    [Category("LZW")]
+    [Fact]
     public void InputStreamOwnership()
     {
         var memStream = new TrackedMemoryStream();
         var s = new LzwInputStream(memStream);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.Close();
 
-        ClassicAssert.IsTrue(memStream.IsClosed, "Should be closed after parent owner close");
-        ClassicAssert.IsTrue(memStream.IsDisposed, "Should be disposed after parent owner close");
+        Assert.True(memStream.IsClosed, "Should be closed after parent owner close");
+        Assert.True(memStream.IsDisposed, "Should be disposed after parent owner close");
 
         memStream = new TrackedMemoryStream();
         s = new LzwInputStream(memStream);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.IsStreamOwner = false;
         s.Close();
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Should not be closed after parent owner close");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Should not be disposed after parent owner close");
+        Assert.False(memStream.IsClosed, "Should not be closed after parent owner close");
+        Assert.False(memStream.IsDisposed, "Should not be disposed after parent owner close");
     }
 }

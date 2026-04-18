@@ -1,8 +1,7 @@
-﻿using NUnit.Framework;
-using NUnit.Framework.Legacy;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.TestSupport;
 
@@ -38,7 +37,7 @@ internal static class SevenZipHelper
                 if (!p.HasExited)
                 {
                     p.Close();
-                    Assert.Warn($"Timed out checking for 7z binary in \"{testPath}\"!");
+                    Console.WriteLine($"Timed out checking for 7z binary in \"{testPath}\"!");
                     continue;
                 }
 
@@ -87,17 +86,18 @@ internal static class SevenZipHelper
 					
                 if (p == null)
                 {
-                    Assert.Inconclusive("Failed to start 7z process. Skipping!");
+                    Assert.Skip("Failed to start 7z process. Skipping!");
+                    return;
                 }
                 if (!p.WaitForExit(2000))
                 {
-                    Assert.Warn("Timed out verifying zip file!");
+                    Console.WriteLine("Timed out verifying zip file!");
                 }
 
-                TestContext.Out.Write(p.StandardOutput.ReadToEnd());
+                Console.Write(p.StandardOutput.ReadToEnd());
                 var errors = p.StandardError.ReadToEnd();
-                ClassicAssert.IsEmpty(errors, "7z reported errors");
-                ClassicAssert.AreEqual(0, p.ExitCode, "Archive verification failed");
+                Assert.True(string.IsNullOrEmpty(errors), $"7z reported errors: {errors}");
+                Assert.True(p.ExitCode == 0, $"Archive verification failed (exit code {p.ExitCode})");
             }
             finally
             {
@@ -106,7 +106,7 @@ internal static class SevenZipHelper
         }
         else
         {
-            Assert.Warn("Skipping file verification since 7za is not in path");
+            Console.WriteLine("Skipping file verification since 7za is not in path");
         }
     }
 }

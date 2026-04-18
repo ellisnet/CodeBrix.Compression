@@ -2,8 +2,6 @@
 // They are about the same in terms of speed.
 #define SimpleSynch
 
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System;
 using System.Threading;
 

@@ -1,9 +1,8 @@
 using CodeBrix.Compression.Zip;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System;
 using System.IO;
 using System.Threading;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Zip;
 
@@ -15,9 +14,9 @@ public class ZipCorruptionHandling
                                           "PrVkPOkgce9QlJFi5hr9rhD+cUUvZ9qgnuRuBAtId97Qw0AL1Kbw5h6MykeKdlyWdlWs7OlUdgsodRqKVo0v8" +
                                           "JWyGWZ6mLpuiii2t2Bl0mZ54QksOIpqXNPATF/eH1BLAQIXAxQAAgAIANxQZ0U5T8HwjQAAAL8AAAAIAA0AAA" +
                                           "AAAAEAAACggQAAAABsaW1lcgEAQwAAAMgAAAAAAA==";
-		
-    [Test]
-    [Category("Zip")]
+
+    [Fact]
+    [Trait("Category", "Zip")]
     public void ZeroCodeLengthZipFile()
     {
         Assert.Throws<CompressionExceptionBase>(() => {
@@ -52,15 +51,15 @@ public class ZipCorruptionHandling
 			AAAAAAAAUAAAAAAAAACtJLS5Jy8xJVUjOzytJzSsp5gIAUEsBAjMALQAAAAgA2HL6ThyP6vz//////////wgAFAAAAAAAA
 			AAAAAAAAAAAAHRlc3RmaWxlAQAQABIAAAAAAAAAFAAAAAAAAABQSwUGAAAAAAEAAQBKAAAATgAAAAAA";
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void CorruptCentralDirWithCorrectZip64CD()
     {
         var fileBytes = Convert.FromBase64String(TestFileBadCDGoodCD64);
         using var ms = new MemoryStream(fileBytes);
         using var zip = new ZipFile(ms);
-        ClassicAssert.AreEqual(1, zip.Count);
-        ClassicAssert.AreNotEqual(0, zip[0].Size, "Uncompressed file size read from corrupt CentralDir instead of CD64");
+        Assert.Equal(1, zip.Count);
+        Assert.NotEqual(0, zip[0].Size);
     }
 
 }

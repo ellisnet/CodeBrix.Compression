@@ -1,43 +1,36 @@
-﻿using CodeBrix.Compression.Tests.TestSupport;
+using CodeBrix.Compression.Tests.TestSupport;
 using CodeBrix.Compression.Zip;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using Does = CodeBrix.Compression.Tests.TestSupport.Does;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Zip;
 
-[TestFixture]
+[Trait("Category", "Encryption")]
+[Trait("Category", "Zip")]
 public class ZipEncryptionHandling
 {
-    [Test]
-    [Category("Encryption")]
-    [Category("Zip")]
-    [TestCase(CompressionMethod.Stored)]
-    [TestCase(CompressionMethod.Deflated)]
+    [Theory]
+    [InlineData(CompressionMethod.Stored)]
+    [InlineData(CompressionMethod.Deflated)]
     public void Aes128Encryption(CompressionMethod compressionMethod)
     {
         CreateZipWithEncryptedEntries("foo", 128, compressionMethod);
     }
 
-    [Test]
-    [Category("Encryption")]
-    [Category("Zip")]
-    [TestCase(CompressionMethod.Stored)]
-    [TestCase(CompressionMethod.Deflated)]
+    [Theory]
+    [InlineData(CompressionMethod.Stored)]
+    [InlineData(CompressionMethod.Deflated)]
     public void Aes256Encryption(CompressionMethod compressionMethod)
     {
         CreateZipWithEncryptedEntries("foo", 256, compressionMethod);
     }
 
-    [Test]
-    [Category("Encryption")]
-    [Category("Zip")]
-    [TestCase(CompressionMethod.Stored)]
-    [TestCase(CompressionMethod.Deflated)]
+    [Theory]
+    [InlineData(CompressionMethod.Stored)]
+    [InlineData(CompressionMethod.Deflated)]
     public void ZipCryptoEncryption(CompressionMethod compressionMethod)
     {
         CreateZipWithEncryptedEntries("foo", 0, compressionMethod);
@@ -48,11 +41,29 @@ public class ZipEncryptionHandling
     /// These are entries where the entry size is set to 0 ahead of time, so that PutNextEntry will fill in the header and there will be no patching.
     /// Test with Zip64 on and off, as the logic is different for the two.
     /// </summary>
-    [Test]
+    [Theory]
+    [InlineData(UseZip64.Off, 0, CompressionMethod.Stored)]
+    [InlineData(UseZip64.Off, 0, CompressionMethod.Deflated)]
+    [InlineData(UseZip64.Off, 128, CompressionMethod.Stored)]
+    [InlineData(UseZip64.Off, 128, CompressionMethod.Deflated)]
+    [InlineData(UseZip64.Off, 256, CompressionMethod.Stored)]
+    [InlineData(UseZip64.Off, 256, CompressionMethod.Deflated)]
+    [InlineData(UseZip64.On, 0, CompressionMethod.Stored)]
+    [InlineData(UseZip64.On, 0, CompressionMethod.Deflated)]
+    [InlineData(UseZip64.On, 128, CompressionMethod.Stored)]
+    [InlineData(UseZip64.On, 128, CompressionMethod.Deflated)]
+    [InlineData(UseZip64.On, 256, CompressionMethod.Stored)]
+    [InlineData(UseZip64.On, 256, CompressionMethod.Deflated)]
+    [InlineData(UseZip64.Dynamic, 0, CompressionMethod.Stored)]
+    [InlineData(UseZip64.Dynamic, 0, CompressionMethod.Deflated)]
+    [InlineData(UseZip64.Dynamic, 128, CompressionMethod.Stored)]
+    [InlineData(UseZip64.Dynamic, 128, CompressionMethod.Deflated)]
+    [InlineData(UseZip64.Dynamic, 256, CompressionMethod.Stored)]
+    [InlineData(UseZip64.Dynamic, 256, CompressionMethod.Deflated)]
     public void ZipOutputStreamEncryptEmptyEntries(
-        [Values] UseZip64 useZip64,
-        [Values(0, 128, 256)] int keySize,
-        [Values(CompressionMethod.Stored, CompressionMethod.Deflated)] CompressionMethod compressionMethod)
+        UseZip64 useZip64,
+        int keySize,
+        CompressionMethod compressionMethod)
     {
         using var ms = new MemoryStream();
         using (var zipOutputStream = new ZipOutputStream(ms))
@@ -77,9 +88,7 @@ public class ZipEncryptionHandling
         SevenZipHelper.VerifyZipWith7Zip(ms, "password");
     }
 
-    [Test]
-    [Category("Encryption")]
-    [Category("Zip")]
+    [Fact]
     public void ZipFileAesDecryption()
     {
         var password = "password";
@@ -102,15 +111,13 @@ public class ZipEncryptionHandling
             using var zis = zipFile.GetInputStream(entry);
             using var sr = new StreamReader(zis, Encoding.UTF8);
             var content = sr.ReadToEnd();
-            ClassicAssert.AreEqual(DummyDataString, content, "Decompressed content does not match input data");
+            Assert.Equal(DummyDataString, content);
         }
 
-        Assert.That(zipFile, Does.PassTestArchive(testData: false), "Encrypted archive should pass validation.");
+        ZipTesting.AssertPassesTestArchive(zipFile, testData: false);
     }
 
-    [Test]
-    [Category("Encryption")]
-    [Category("Zip")]
+    [Fact]
     public void ZipFileAesRead()
     {
         var password = "password";
@@ -134,16 +141,14 @@ public class ZipEncryptionHandling
             using var zis = zipFile.GetInputStream(entry);
             using var sr = new StreamReader(zis, Encoding.UTF8);
             var content = sr.ReadToEnd();
-            ClassicAssert.AreEqual(DummyDataString, content, "Decompressed content does not match input data");
+            Assert.Equal(DummyDataString, content);
         }
     }
 
     /// <summary>
     /// Test using AES encryption on a file whose contents are Stored rather than deflated
     /// </summary>
-    [Test]
-    [Category("Encryption")]
-    [Category("Zip")]
+    [Fact]
     public void ZipFileStoreAes()
     {
         var password = "password";
@@ -164,21 +169,19 @@ public class ZipEncryptionHandling
             }
 
             // Should be stored rather than deflated
-            Assert.That(entry.CompressionMethod, Is.EqualTo(CompressionMethod.Stored), "Entry should be stored");
+            Assert.Equal(CompressionMethod.Stored, entry.CompressionMethod);
 
             using var zis = zipFile.GetInputStream(entry);
             using var sr = new StreamReader(zis, Encoding.UTF8);
             var content = sr.ReadToEnd();
-            Assert.That(content, Is.EqualTo(DummyDataString), "Decompressed content does not match input data");
+            Assert.Equal(DummyDataString, content);
         }
     }
 
     /// <summary>
     /// As <see cref="ZipFileStoreAes"/>, but with Async reads
     /// </summary>
-    [Test]
-    [Category("Encryption")]
-    [Category("Zip")]
+    [Fact]
     public async Task ZipFileStoreAesAsync()
     {
         var password = "password";
@@ -194,13 +197,13 @@ public class ZipEncryptionHandling
         foreach (var entry in zipFile)
         {
             // Should be stored rather than deflated
-            Assert.That(entry.CompressionMethod, Is.EqualTo(CompressionMethod.Stored), "Entry should be stored");
+            Assert.Equal(CompressionMethod.Stored, entry.CompressionMethod);
 
             await using var zis = zipFile.GetInputStream(entry);
             await using var inputStream = zipFile.GetInputStream(entry);
             using var sr = new StreamReader(zis, Encoding.UTF8);
             var content = await sr.ReadToEndAsync();
-            Assert.That(content, Is.EqualTo(DummyDataString), "Decompressed content does not match input data");
+            Assert.Equal(DummyDataString, content);
         }
     }
 
@@ -221,10 +224,11 @@ public class ZipEncryptionHandling
     /// <summary>
     /// Test using AES encryption on a file whose contents are Stored rather than deflated
     /// </summary>
-    [Test]
-    [Category("Encryption")]
-    [Category("Zip")]
-    public void ZipFileStoreAesPartialRead([Values(1, 7, 17)] int readSize)
+    [Theory]
+    [InlineData(1)]
+    [InlineData(7)]
+    [InlineData(17)]
+    public void ZipFileStoreAesPartialRead(int readSize)
     {
         var password = "password";
 
@@ -249,7 +253,7 @@ public class ZipEncryptionHandling
             }
 
             // Should be stored rather than deflated
-            Assert.That(entry.CompressionMethod, Is.EqualTo(CompressionMethod.Stored), "Entry should be stored");
+            Assert.Equal(CompressionMethod.Stored, entry.CompressionMethod);
 
             using var ms = new MemoryStream();
             using (var zis = zipFile.GetInputStream(entry))
@@ -274,7 +278,7 @@ public class ZipEncryptionHandling
             using (var sr = new StreamReader(ms, Encoding.UTF8))
             {
                 var content = sr.ReadToEnd();
-                Assert.That(content, Is.EqualTo(DummyDataString), "Decompressed content does not match input data");
+                Assert.Equal(DummyDataString, content);
             }
         }
     }
@@ -282,9 +286,7 @@ public class ZipEncryptionHandling
     /// <summary>
     /// Test adding files to an encrypted zip
     /// </summary>
-    [Test]
-    [Category("Encryption")]
-    [Category("Zip")]
+    [Fact]
     public void ZipFileAesAdd()
     {
         var password = "password";
@@ -311,34 +313,34 @@ public class ZipEncryptionHandling
             memoryStream.Seek(0, SeekOrigin.Begin);
 
             using var zipFile = new ZipFile(memoryStream, leaveOpen: true) { Password = password };
-            Assert.That(zipFile.Count, Is.EqualTo(2), "Incorrect entry count in updated archive");
+            Assert.Equal(2, zipFile.Count);
 
             // Disabled because of bug #317
-            // Assert.That(zipFile.TestArchive(true), Is.True);
+            // Assert.True(zipFile.TestArchive(true));
 
             // Check the original entry
             {
                 var originalEntry = zipFile.GetEntry("test");
-                Assert.That(originalEntry.IsCrypted, Is.True);
-                Assert.That(originalEntry.AESKeySize, Is.EqualTo(keySize));
+                Assert.True(originalEntry.IsCrypted);
+                Assert.Equal(keySize, originalEntry.AESKeySize);
 
 
                 using var zis = zipFile.GetInputStream(originalEntry);
                 using var sr = new StreamReader(zis, Encoding.UTF8);
                 var content = sr.ReadToEnd();
-                Assert.That(content, Is.EqualTo(DummyDataString), "Decompressed content does not match input data");
+                Assert.Equal(DummyDataString, content);
             }
 
             // Check the additional entry
             // This should be encrypted, though currently only with ZipCrypto
             {
                 var additionalEntry = zipFile.GetEntry("AdditionalEntry");
-                Assert.That(additionalEntry.IsCrypted, Is.True);
+                Assert.True(additionalEntry.IsCrypted);
 
                 using var zis = zipFile.GetInputStream(additionalEntry);
                 using var sr = new StreamReader(zis, Encoding.UTF8);
                 var content = sr.ReadToEnd();
-                Assert.That(content, Is.EqualTo(testData), "Decompressed content does not match input data");
+                Assert.Equal(testData, content);
             }
         }
 
@@ -349,9 +351,7 @@ public class ZipEncryptionHandling
     /// <summary>
     /// Test deleting files from an encrypted zip
     /// </summary>
-    [Test]
-    [Category("Encryption")]
-    [Category("Zip")]
+    [Fact]
     public void ZipFileAesDelete()
     {
         var password = "password";
@@ -368,10 +368,10 @@ public class ZipEncryptionHandling
         {
             using var zipFile = new ZipFile(memoryStream, leaveOpen: true) { Password = password };
             // Must have 3 entries to start with
-            Assert.That(zipFile.Count, Is.EqualTo(3), "Must have 3 entries to start with");
+            Assert.Equal(3, zipFile.Count);
 
             var entryToDelete = zipFile.GetEntry("test-1");
-            Assert.That(entryToDelete, Is.Not.Null, "the entry that we want to delete must exist");
+            Assert.NotNull(entryToDelete);
 
             zipFile.BeginUpdate();
             zipFile.Delete(entryToDelete);
@@ -384,35 +384,35 @@ public class ZipEncryptionHandling
 
             using var zipFile = new ZipFile(memoryStream, leaveOpen: true) { Password = password };
             // We should now only have 2 files
-            Assert.That(zipFile.Count, Is.EqualTo(2), "Incorrect entry count in updated archive");
+            Assert.Equal(2, zipFile.Count);
 
             // Disabled because of bug #317
-            // Assert.That(zipFile.TestArchive(true), Is.True);
+            // Assert.True(zipFile.TestArchive(true));
 
             // Check the first entry
             {
                 var originalEntry = zipFile.GetEntry("test-0");
-                Assert.That(originalEntry.IsCrypted, Is.True);
-                Assert.That(originalEntry.AESKeySize, Is.EqualTo(keySize));
+                Assert.True(originalEntry.IsCrypted);
+                Assert.Equal(keySize, originalEntry.AESKeySize);
 
 
                 using var zis = zipFile.GetInputStream(originalEntry);
                 using var sr = new StreamReader(zis, Encoding.UTF8);
                 var content = sr.ReadToEnd();
-                Assert.That(content, Is.EqualTo(DummyDataString), "Decompressed content does not match input data");
+                Assert.Equal(DummyDataString, content);
             }
 
             // Check the second entry
             {
                 var originalEntry = zipFile.GetEntry("test-2");
-                Assert.That(originalEntry.IsCrypted, Is.True);
-                Assert.That(originalEntry.AESKeySize, Is.EqualTo(keySize));
+                Assert.True(originalEntry.IsCrypted);
+                Assert.Equal(keySize, originalEntry.AESKeySize);
 
 
                 using var zis = zipFile.GetInputStream(originalEntry);
                 using var sr = new StreamReader(zis, Encoding.UTF8);
                 var content = sr.ReadToEnd();
-                Assert.That(content, Is.EqualTo(DummyDataString), "Decompressed content does not match input data");
+                Assert.Equal(DummyDataString, content);
             }
         }
 
@@ -432,8 +432,7 @@ public class ZipEncryptionHandling
     /// <remarks>
     /// Test added for https://github.com/icsharpcode/SharpZipLib/issues/471.
     /// </remarks>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void ZipFileAESReadWithEmptyPassword()
     {
         var fileBytes = Convert.FromBase64String(TestFileWithEmptyPassword);
@@ -447,15 +446,14 @@ public class ZipEncryptionHandling
         using var inputStream = zipFile.GetInputStream(entry);
         using var sr = new StreamReader(inputStream, Encoding.UTF8);
         var content = sr.ReadToEnd();
-        Assert.That(content, Is.EqualTo("Lorem ipsum dolor sit amet, consectetur adipiscing elit."), "Decompressed content does not match expected data");
+        Assert.Equal("Lorem ipsum dolor sit amet, consectetur adipiscing elit.", content);
     }
 
     /// <summary>
     /// ZipInputStream can't decrypt AES encrypted entries, but it should report that to the caller
     /// rather than just failing.
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void ZipinputStreamShouldGracefullyFailWithAESStreams()
     {
         var password = "password";
@@ -471,10 +469,10 @@ public class ZipEncryptionHandling
         using var inputStream = new ZipInputStream(memoryStream);
         inputStream.Password = password;
         var entry = inputStream.GetNextEntry();
-        Assert.That(entry.AESKeySize, Is.EqualTo(256), "Test entry should be AES256 encrypted.");
+        Assert.Equal(256, entry.AESKeySize);
 
         // CanDecompressEntry should be false.
-        Assert.That(inputStream.CanDecompressEntry, Is.False, "CanDecompressEntry should be false for AES encrypted entries");
+        Assert.False(inputStream.CanDecompressEntry, "CanDecompressEntry should be false for AES encrypted entries");
 
         // Should throw on read.
         Assert.Throws<ZipException>(() => inputStream.ReadByte());

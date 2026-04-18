@@ -1,15 +1,14 @@
-﻿using CodeBrix.Compression.Tests.TestSupport;
+using CodeBrix.Compression.Tests.TestSupport;
 using CodeBrix.Compression.Zip;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Zip;
 
-[TestFixture]
+[Trait("Category", "Zip")]
 public class ZipEntryHandling : ZipBase
 {
     private byte[] MakeLocalHeader(string asciiName, short versionToExtract, short flags, short method,
@@ -55,22 +54,21 @@ public class ZipEntryHandling : ZipBase
 
         var fields = entryType.GetFields(binding);
 
-        ClassicAssert.Greater(fields.Length, 8, "Failed to find fields");
+        Assert.True(fields.Length > 8, "Failed to find fields");
 
         foreach (var info in fields)
         {
             var lValue = info.GetValue(lhs);
             var rValue = info.GetValue(rhs);
 
-            ClassicAssert.AreEqual(lValue, rValue);
+            Assert.Equal(lValue, rValue);
         }
     }
 
     /// <summary>
     /// Test that obsolete copy constructor works correctly.
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void Copying()
     {
         long testCrc = 3456;
@@ -104,8 +102,7 @@ public class ZipEntryHandling : ZipBase
     /// <summary>
     /// Check that cloned entries are correct.
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void Cloning()
     {
         long testCrc = 3456;
@@ -132,15 +129,15 @@ public class ZipEntryHandling : ZipBase
         var clone = (ZipEntry)source.Clone();
 
         // Check values against originals
-        ClassicAssert.AreEqual(testName, clone.Name, "Cloned name mismatch");
-        ClassicAssert.AreEqual(testCrc, clone.Crc, "Cloned crc mismatch");
-        ClassicAssert.AreEqual(testComment, clone.Comment, "Cloned comment mismatch");
-        ClassicAssert.AreEqual(testExtraData, clone.ExtraData, "Cloned Extra data mismatch");
-        ClassicAssert.AreEqual(testSize, clone.Size, "Cloned size mismatch");
-        ClassicAssert.AreEqual(testCompressedSize, clone.CompressedSize, "Cloned compressed size mismatch");
-        ClassicAssert.AreEqual(testFlags, clone.Flags, "Cloned flags mismatch");
-        ClassicAssert.AreEqual(testDosTime, clone.DosTime, "Cloned DOSTime mismatch");
-        ClassicAssert.AreEqual(testMethod, clone.CompressionMethod, "Cloned Compression method mismatch");
+        Assert.Equal(testName, clone.Name);
+        Assert.Equal(testCrc, clone.Crc);
+        Assert.Equal(testComment, clone.Comment);
+        Assert.Equal(testExtraData, clone.ExtraData);
+        Assert.Equal(testSize, clone.Size);
+        Assert.Equal(testCompressedSize, clone.CompressedSize);
+        Assert.Equal(testFlags, clone.Flags);
+        Assert.Equal(testDosTime, clone.DosTime);
+        Assert.Equal(testMethod, clone.CompressionMethod);
 
         // Check against source
         PiecewiseCompare(source, clone);
@@ -149,8 +146,7 @@ public class ZipEntryHandling : ZipBase
     /// <summary>
     /// Setting entry comments to null should be allowed
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void NullEntryComment()
     {
         var test = new ZipEntry("null");
@@ -160,20 +156,16 @@ public class ZipEntryHandling : ZipBase
     /// <summary>
     /// Entries with null names arent allowed
     /// </summary>
-    [Test]
-    [Category("Zip")]
-    //[ExpectedException(typeof(ArgumentNullException))]
+    [Fact]
     public void NullNameInConstructor()
     {
         string name = null;
-        ZipEntry test; // = new ZipEntry(name);
+        ZipEntry test;
 
-        Assert.That(() => test = new ZipEntry(name),
-            Throws.TypeOf<ArgumentNullException>());
+        Assert.Throws<ArgumentNullException>(() => test = new ZipEntry(name));
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void DateAndTime()
     {
         var ze = new ZipEntry("Pok");
@@ -182,7 +174,7 @@ public class ZipEntryHandling : ZipBase
         // ZipEntry is lenient about handling invalid values.
         ze.DosTime = -1;
 
-        ClassicAssert.AreEqual(new DateTime(2107, 12, 31, 23, 59, 59), ze.DateTime);
+        Assert.Equal(new DateTime(2107, 12, 31, 23, 59, 59), ze.DateTime);
 
         // 0 is a special value meaning Now.
         ze.DosTime = 0;
@@ -190,21 +182,20 @@ public class ZipEntryHandling : ZipBase
 
         // Value == 2 seconds!
         ze.DosTime = 1;
-        ClassicAssert.AreEqual(new DateTime(1980, 1, 1, 0, 0, 2), ze.DateTime);
+        Assert.Equal(new DateTime(1980, 1, 1, 0, 0, 2), ze.DateTime);
 
         // Over the limit are set to max.
         ze.DateTime = new DateTime(2108, 1, 1);
         ze.DosTime = ze.DosTime;
-        ClassicAssert.AreEqual(new DateTime(2107, 12, 31, 23, 59, 58), ze.DateTime);
+        Assert.Equal(new DateTime(2107, 12, 31, 23, 59, 58), ze.DateTime);
 
         // Under the limit are set to min.
         ze.DateTime = new DateTime(1906, 12, 4);
         ze.DosTime = ze.DosTime;
-        ClassicAssert.AreEqual(new DateTime(1980, 1, 1, 0, 0, 0), ze.DateTime);
+        Assert.Equal(new DateTime(1980, 1, 1, 0, 0, 0), ze.DateTime);
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void DateTimeSetsDosTime()
     {
         var ze = new ZipEntry("Pok");
@@ -212,11 +203,11 @@ public class ZipEntryHandling : ZipBase
         var original = ze.DosTime;
 
         ze.DateTime = new DateTime(1987, 9, 12);
-        ClassicAssert.AreNotEqual(original, ze.DosTime);
-        ClassicAssert.AreEqual(0, TestHelper.CompareDosDateTimes(new DateTime(1987, 9, 12), ze.DateTime));
+        Assert.NotEqual(original, ze.DosTime);
+        Assert.Equal(0, TestHelper.CompareDosDateTimes(new DateTime(1987, 9, 12), ze.DateTime));
     }
 
-    [Test]
+    [Fact]
     public void CanDecompress()
     {
         var dosTime = 12;
@@ -225,14 +216,14 @@ public class ZipEntryHandling : ZipBase
         var ze = MakeEntry("a", 10, 0, (short)CompressionMethod.Deflated,
             dosTime, crc, 1, 1);
 
-        ClassicAssert.IsTrue(ze.CanDecompress);
+        Assert.True(ze.CanDecompress);
 
         ze = MakeEntry("a", 45, 0, (short)CompressionMethod.Stored,
             dosTime, crc, 1, 1);
-        ClassicAssert.IsTrue(ze.CanDecompress);
+        Assert.True(ze.CanDecompress);
 
         ze = MakeEntry("a", 99, 0, (short)CompressionMethod.Deflated,
             dosTime, crc, 1, 1);
-        ClassicAssert.IsFalse(ze.CanDecompress);
+        Assert.False(ze.CanDecompress);
     }
 }

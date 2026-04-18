@@ -1,18 +1,16 @@
-﻿using CodeBrix.Compression.Core;
+using CodeBrix.Compression.Core;
 using CodeBrix.Compression.Tests.TestSupport;
 using CodeBrix.Compression.Zip;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System;
 using System.IO;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Zip;
 
-[TestFixture]
+[Trait("Category", "Zip")]
 public class ZipNameTransformHandling : TransformBase
 {
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void Basic()
     {
         var t = new ZipNameTransform();
@@ -30,31 +28,29 @@ public class ZipNameTransformHandling : TransformBase
         TestFile(t, @".....file3", ".....file3");
     }
 
-    [Test]
-    [Category("Zip")]
-    [Platform("Win")]
+    [Fact]
     public void Basic_Windows()
     {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows only");
         var t = new ZipNameTransform();
         TestFile(t, @"\\uncpath\d1\file1", "file1");
         TestFile(t, @"C:\absolute\file2", "absolute/file2");
-			
+
         TestFile(t, @"c::file", "_file");
     }
-		
-    [Test]
-    [Category("Zip")]
-    [Platform(Exclude="Win")]
+
+    [Fact]
     public void Basic_Posix()
     {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Posix only");
         var t = new ZipNameTransform();
         TestFile(t, @"backslash_path\file1", "backslash_path/file1");
         TestFile(t, "/absolute/file2", "absolute/file2");
-			
+
         TestFile(t, @"////////:file", "_file");
     }
 
-    [Test]
+    [Fact]
     public void TooLong()
     {
         var zt = new ZipNameTransform();
@@ -62,70 +58,67 @@ public class ZipNameTransformHandling : TransformBase
         Assert.Throws<PathTooLongException>(() => zt.TransformDirectory(tooLong));
     }
 
-    [Test]
+    [Fact]
     public void LengthBoundaryOk()
     {
         var zt = new ZipNameTransform();
         var tooLongWithRoot = Utils.SystemRoot + new string('x', 65535);
-        Assert.DoesNotThrow(() => zt.TransformDirectory(tooLongWithRoot));
+        var ex = Record.Exception(() => zt.TransformDirectory(tooLongWithRoot));
+        Assert.Null(ex);
     }
 
-    [Test]
-    [Category("Zip")]
-    [Platform("Win")]
+    [Fact]
     public void NameTransforms_Windows()
     {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows only");
         INameTransform t = new ZipNameTransform(@"C:\Slippery");
-        ClassicAssert.AreEqual("Pongo/Directory/", t.TransformDirectory(@"C:\Slippery\Pongo\Directory"), "Value should be trimmed and converted");
-        ClassicAssert.AreEqual("PoNgo/Directory/", t.TransformDirectory(@"c:\slipperY\PoNgo\Directory"), "Trimming should be case insensitive");
-        ClassicAssert.AreEqual("slippery/Pongo/Directory/", t.TransformDirectory(@"d:\slippery\Pongo\Directory"), "Trimming should account for root");
+        Assert.Equal("Pongo/Directory/", t.TransformDirectory(@"C:\Slippery\Pongo\Directory"));
+        Assert.Equal("PoNgo/Directory/", t.TransformDirectory(@"c:\slipperY\PoNgo\Directory"));
+        Assert.Equal("slippery/Pongo/Directory/", t.TransformDirectory(@"d:\slippery\Pongo\Directory"));
 
-        ClassicAssert.AreEqual("Pongo/File", t.TransformFile(@"C:\Slippery\Pongo\File"), "Value should be trimmed and converted");
+        Assert.Equal("Pongo/File", t.TransformFile(@"C:\Slippery\Pongo\File"));
     }
-		
-    [Test]
-    [Category("Zip")]
-    [Platform(Exclude="Win")]
+
+    [Fact]
     public void NameTransforms_Posix()
     {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Posix only");
         INameTransform t = new ZipNameTransform(@"/Slippery");
-        ClassicAssert.AreEqual("Pongo/Directory/", t.TransformDirectory(@"/Slippery\Pongo\Directory"), "Value should be trimmed and converted");
-        ClassicAssert.AreEqual("PoNgo/Directory/", t.TransformDirectory(@"/slipperY\PoNgo\Directory"), "Trimming should be case insensitive");
-        ClassicAssert.AreEqual("slippery/Pongo/Directory/", t.TransformDirectory(@"/slippery/slippery/Pongo/Directory"), "Trimming should account for root");
+        Assert.Equal("Pongo/Directory/", t.TransformDirectory(@"/Slippery\Pongo\Directory"));
+        Assert.Equal("PoNgo/Directory/", t.TransformDirectory(@"/slipperY\PoNgo\Directory"));
+        Assert.Equal("slippery/Pongo/Directory/", t.TransformDirectory(@"/slippery/slippery/Pongo/Directory"));
 
-        ClassicAssert.AreEqual("Pongo/File", t.TransformFile(@"/Slippery/Pongo/File"), "Value should be trimmed and converted");
+        Assert.Equal("Pongo/File", t.TransformFile(@"/Slippery/Pongo/File"));
     }
 
     /// <summary>
     /// Test ZipEntry static file name cleaning methods
     /// </summary>
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void FilenameCleaning()
     {
-        ClassicAssert.AreEqual("hello", ZipEntry.CleanName("hello"));
-        if(Environment.OSVersion.Platform == PlatformID.Win32NT) 
+        Assert.Equal("hello", ZipEntry.CleanName("hello"));
+        if(Environment.OSVersion.Platform == PlatformID.Win32NT)
         {
-            ClassicAssert.AreEqual("eccles", ZipEntry.CleanName(@"z:\eccles"));
-            ClassicAssert.AreEqual("eccles", ZipEntry.CleanName(@"\\server\share\eccles"));
-            ClassicAssert.AreEqual("dir/eccles", ZipEntry.CleanName(@"\\server\share\dir\eccles"));
+            Assert.Equal("eccles", ZipEntry.CleanName(@"z:\eccles"));
+            Assert.Equal("eccles", ZipEntry.CleanName(@"\\server\share\eccles"));
+            Assert.Equal("dir/eccles", ZipEntry.CleanName(@"\\server\share\dir\eccles"));
         }
         else {
-            ClassicAssert.AreEqual("eccles", ZipEntry.CleanName(@"/eccles"));
+            Assert.Equal("eccles", ZipEntry.CleanName(@"/eccles"));
         }
     }
 
-    [Test]
-    [Category("Zip")]
+    [Fact]
     public void PathalogicalNames()
     {
         var badName = ".*:\\zy3$";
 
-        ClassicAssert.IsFalse(ZipNameTransform.IsValidName(badName));
+        Assert.False(ZipNameTransform.IsValidName(badName));
 
         var t = new ZipNameTransform();
         var result = t.TransformFile(badName);
 
-        ClassicAssert.IsTrue(ZipNameTransform.IsValidName(result));
+        Assert.True(ZipNameTransform.IsValidName(result));
     }
 }

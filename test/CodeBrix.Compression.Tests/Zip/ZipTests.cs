@@ -2,12 +2,12 @@ using CodeBrix.Compression.Checksum;
 using CodeBrix.Compression.Core;
 using CodeBrix.Compression.Tests.TestSupport;
 using CodeBrix.Compression.Zip;
-using NUnit.Framework.Legacy;
 using System;
 using System.IO;
 using System.Security;
 using System.Text;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Zip;
 
@@ -408,11 +408,11 @@ public class ZipBase
             total += bytesRead;
             for (var i = 0; i < bytesRead; ++i)
             {
-                ClassicAssert.AreEqual(nextValue, buffer[i], "Wrong value read from entry");
+                Assert.Equal(nextValue, buffer[i]);
                 nextValue = ScatterValue(nextValue);
             }
         }
-        ClassicAssert.AreEqual(expectedCount, total, "Wrong number of bytes read from entry");
+        Assert.Equal(expectedCount, total);
     }
 
     protected static async Task CheckKnownEntryAsync(Stream inStream, int expectedCount)
@@ -427,17 +427,17 @@ public class ZipBase
             total += bytesRead;
             for (var i = 0; i < bytesRead; ++i)
             {
-                ClassicAssert.AreEqual(nextValue, buffer[i], "Wrong value read from entry");
+                Assert.Equal(nextValue, buffer[i]);
                 nextValue = ScatterValue(nextValue);
             }
         }
-        ClassicAssert.AreEqual(expectedCount, total, "Wrong number of bytes read from entry");
+        Assert.Equal(expectedCount, total);
     }
 
     protected byte ReadByteChecked(Stream stream)
     {
         var rawValue = stream.ReadByte();
-        ClassicAssert.IsTrue(rawValue >= 0);
+        Assert.True(rawValue >= 0);
         return (byte)rawValue;
     }
 
@@ -499,12 +499,12 @@ public class TransformBase : ZipBase
     protected void TestFile(INameTransform t, string original, string expected)
     {
         var transformed = t.TransformFile(original);
-        ClassicAssert.AreEqual(expected, transformed, "Should be equal");
+        Assert.Equal(expected, transformed);
     }
 
     protected void TestDirectory(INameTransform t, string original, string expected)
     {
         var transformed = t.TransformDirectory(original);
-        ClassicAssert.AreEqual(expected, transformed, "Should be equal");
+        Assert.Equal(expected, transformed);
     }
 }

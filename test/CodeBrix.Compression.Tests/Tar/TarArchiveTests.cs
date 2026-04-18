@@ -1,70 +1,67 @@
-﻿using System.IO;
+using System;
+using System.IO;
 using System.Text;
 using CodeBrix.Compression.Core;
 using CodeBrix.Compression.Tar;
 using CodeBrix.Compression.Tests.TestSupport;
 using static CodeBrix.Compression.Tests.TestSupport.Utils;
-using NUnit.Framework;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Tar;
 
-[TestFixture]
+[Trait("Category", "Tar")]
+[Trait("Category", "CreatesTempFile")]
 public class TarArchiveTests
 {
-    [Test]
-    [Category("Tar")]
-    [Category("CreatesTempFile")]
-    [TestCase("output")]
-    [TestCase("output/")]
-    [TestCase(@"output\", IncludePlatform = "Win")]
-    public void ExtractingContentsWithNonTraversalPathSucceeds(string outputDir)
+    [Theory]
+    [InlineData("output", false)]
+    [InlineData("output/", false)]
+    [InlineData(@"output\", true)]
+    public void ExtractingContentsWithNonTraversalPathSucceeds(string outputDir, bool winOnly)
     {
-        Assert.DoesNotThrow(() => ExtractTarOK(outputDir, "file", allowTraverse: false));
+        if (winOnly && !OperatingSystem.IsWindows()) Assert.Skip("Windows only");
+        var ex = Record.Exception(() => ExtractTarOK(outputDir, "file", allowTraverse: false));
+        Assert.Null(ex);
     }
-		
-    [Test]
-    [Category("Tar")]
-    [Category("CreatesTempFile")]
+
+    [Fact]
     public void ExtractingContentsWithExplicitlyAllowedTraversalPathSucceeds()
     {
-        Assert.DoesNotThrow(() => ExtractTarOK("output", "../file", allowTraverse: true));
+        var ex = Record.Exception(() => ExtractTarOK("output", "../file", allowTraverse: true));
+        Assert.Null(ex);
     }
-		
-    [Test]
-    [Category("Tar")]
-    [Category("CreatesTempFile")]
-    [TestCase("output", "../file")]
-    [TestCase("output/", "../file")]
-    [TestCase("output", "../output.txt")]
+
+    [Theory]
+    [InlineData("output", "../file")]
+    [InlineData("output/", "../file")]
+    [InlineData("output", "../output.txt")]
     public void ExtractingContentsWithDisallowedPathsFails(string outputDir, string fileName)
     {
         Assert.Throws<InvalidNameException>(() => ExtractTarOK(outputDir, fileName, allowTraverse: false));
     }
-		
-    [Test]
-    [Category("Tar")]
-    [Category("CreatesTempFile")]
-    [Platform(Include = "Win", Reason = "Backslashes are only treated as path separators on windows")]
-    [TestCase(@"output\", @"..\file")]
-    [TestCase(@"output/", @"..\file")]
-    [TestCase("output", @"..\output.txt")]
-    [TestCase(@"output\", @"..\output.txt")]
+
+    [Theory]
+    [InlineData(@"output\", @"..\file")]
+    [InlineData(@"output/", @"..\file")]
+    [InlineData("output", @"..\output.txt")]
+    [InlineData(@"output\", @"..\output.txt")]
     public void ExtractingContentsOnWindowsWithDisallowedPathsFails(string outputDir, string fileName)
     {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Backslashes are only treated as path separators on windows");
         Assert.Throws<InvalidNameException>(() => ExtractTarOK(outputDir, fileName, allowTraverse: false));
     }
-		
+
     public void ExtractTarOK(string outputDir, string fileName, bool allowTraverse)
     {
         var fileContent = Encoding.UTF8.GetBytes("file content");
         using var tempDir = GetTempDir();
-			
+
         var tempPath = tempDir.FullName;
         var extractPath = Path.Combine(tempPath, outputDir);
         var expectedOutputFile = Path.Combine(extractPath, fileName);
 
         using var archiveStream = new MemoryStream();
-			
+
         Directory.CreateDirectory(extractPath);
 
         using (var tos = new TarOutputStream(archiveStream, Encoding.UTF8){IsStreamOwner = false})
@@ -80,11 +77,11 @@ public class TarArchiveTests
 
         using (var ta = TarArchive.CreateInputTarArchive(archiveStream, Encoding.UTF8))
         {
-            ta.ProgressMessageEvent += (archive, entry, message) 
-                => TestContext.WriteLine($"{entry.Name} {entry.Size} {message}");
+            ta.ProgressMessageEvent += (archive, entry, message)
+                => Console.WriteLine($"{entry.Name} {entry.Size} {message}");
             ta.ExtractContents(extractPath, allowTraverse);
         }
 
-        Assert.That(File.Exists(expectedOutputFile));
+        Assert.True(File.Exists(expectedOutputFile));
     }
 }

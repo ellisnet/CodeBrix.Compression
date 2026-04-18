@@ -1,42 +1,37 @@
 using CodeBrix.Compression.Core;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Core;
 
-[TestFixture]
+[Trait("Category", "Core")]
 public class StringBuilderPoolTests
 {
-    [Test]
-    [Category("Core")]
+    [Fact]
     public void RoundTrip()
     {
         var pool = new StringBuilderPool();
         var builder1 = pool.Rent();
         pool.Return(builder1);
         var builder2 = pool.Rent();
-        ClassicAssert.AreEqual(builder1, builder2);
+        Assert.Equal(builder1, builder2);
     }
 
-    [Test]
-    [Category("Core")]
+    [Fact]
     public void ReturnsClears()
     {
         var pool = new StringBuilderPool();
         var builder1 = pool.Rent();
         builder1.Append("Hello");
         pool.Return(builder1);
-        ClassicAssert.AreEqual(0, builder1.Length);
+        Assert.Equal(0, builder1.Length);
     }
 
-    [Test]
-    [Category("Core")]
+    [Fact]
     public async Task ThreadSafeAsync()
     {
-        // use a lot of threads to increase the likelihood of errors
         var concurrency = 100;
-			
+
         var pool = new StringBuilderPool();
         var gate = new TaskCompletionSource<bool>();
         var startedTasks = new Task[concurrency];
@@ -59,18 +54,15 @@ public class StringBuilderPoolTests
             });
         }
 
-        // make sure all the threads have started
         await Task.WhenAll(startedTasks);
-			
-        // let them all loose at the same time
+
         gate.SetResult(true);
 
-        // make sure every thread produces the expected string and hence had its own StringBuilder
         var results = await Task.WhenAll(completedTasks);
         for (var i = 0; i < concurrency; i++)
         {
             var result = results[i];
-            ClassicAssert.AreEqual($"Hello {i}", result);
+            Assert.Equal($"Hello {i}", result);
         }
     }
 }

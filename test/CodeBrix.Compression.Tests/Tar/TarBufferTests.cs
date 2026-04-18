@@ -1,17 +1,15 @@
 using CodeBrix.Compression.Tar;
 using CodeBrix.Compression.Tests.TestSupport;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Tar;
 
-[TestFixture]
 public class TarBufferTests
 {
-    [Test]
+    [Fact]
     public void TestSimpleReadWrite()
     {
         var ms = new MemoryStream();
@@ -31,13 +29,13 @@ public class TarBufferTests
         var block0 = reader.ReadBlock();
         var block1 = reader.ReadBlock();
         var block2 = reader.ReadBlock();
-        ClassicAssert.AreEqual(block, block0);
-        ClassicAssert.AreEqual(block, block1);
-        ClassicAssert.AreEqual(block, block2);
+        Assert.Equal(block, block0);
+        Assert.Equal(block, block1);
+        Assert.Equal(block, block2);
         writer.Close();
     }
 
-    [Test]
+    [Fact]
     public void TestSkipBlock()
     {
         var ms = new MemoryStream();
@@ -56,11 +54,11 @@ public class TarBufferTests
 
         reader.SkipBlock();
         var block = reader.ReadBlock();
-        ClassicAssert.AreEqual(block, block1);
+        Assert.Equal(block, block1);
         writer.Close();
     }
 
-    [Test]
+    [Fact]
     public async Task TestSimpleReadWriteAsync()
     {
         var ms = new MemoryStream();
@@ -83,13 +81,13 @@ public class TarBufferTests
         await reader.ReadBlockIntAsync(block1, CancellationToken.None, true);
         var block2 = new byte[TarBuffer.BlockSize];
         await reader.ReadBlockIntAsync(block2, CancellationToken.None, true);
-        ClassicAssert.AreEqual(block, block0);
-        ClassicAssert.AreEqual(block, block1);
-        ClassicAssert.AreEqual(block, block2);
+        Assert.Equal(block, block0);
+        Assert.Equal(block, block1);
+        Assert.Equal(block, block2);
         await writer.CloseAsync(CancellationToken.None);
     }
 
-    [Test]
+    [Fact]
     public async Task TestSkipBlockAsync()
     {
         var ms = new MemoryStream();
@@ -109,7 +107,7 @@ public class TarBufferTests
         await reader.SkipBlockAsync(CancellationToken.None);
         var block = new byte[TarBuffer.BlockSize];
         await reader.ReadBlockIntAsync(block, CancellationToken.None, true);
-        ClassicAssert.AreEqual(block, block1);
+        Assert.Equal(block, block1);
         await writer.CloseAsync(CancellationToken.None);
     }
 }

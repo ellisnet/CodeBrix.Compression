@@ -1,26 +1,24 @@
 using CodeBrix.Compression.Tests.TestSupport;
 using CodeBrix.Compression.Zip.Compression;
 using CodeBrix.Compression.Zip.Compression.Streams;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System;
 using System.IO;
 using System.Security;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Base;
 
 /// <summary>
 /// This class contains test cases for Deflater/Inflater streams.
 /// </summary>
-[TestFixture]
 public class InflaterDeflaterTestSuite
 {
     // Use the same random seed to guarantee all the code paths are followed
     const int RandomSeed = 5;
-		
+
     private void Inflate(MemoryStream ms, byte[] original, int level, bool zlib)
     {
         var buf2 = new byte[original.Length];
@@ -41,7 +39,7 @@ public class InflaterDeflaterTestSuite
                 count -= numRead;
             }
 
-            Assert.That(currentIndex, Is.EqualTo(original.Length), "Decompressed data must have the same length as the original data");
+            Assert.True(currentIndex == original.Length, "Decompressed data must have the same length as the original data");
         }
 
         VerifyInflatedData(original, buf2, level, zlib);
@@ -66,7 +64,7 @@ public class InflaterDeflaterTestSuite
         var ms = Deflate(buffer, level, zlib);
         Inflate(ms, buffer, level, zlib);
     }
-		
+
     private static InflaterInputStream GetInflaterInputStream(Stream compressedStream, bool zlib)
     {
         compressedStream.Seek(0, SeekOrigin.Begin);
@@ -76,7 +74,7 @@ public class InflaterDeflaterTestSuite
 
         return inStream;
     }
-		
+
     private async Task InflateAsync(MemoryStream ms, byte[] original, int level, bool zlib)
     {
         var buf2 = new byte[original.Length];
@@ -97,12 +95,12 @@ public class InflaterDeflaterTestSuite
                 count -= numRead;
             }
 
-            Assert.That(currentIndex, Is.EqualTo(original.Length), "Decompressed data must have the same length as the original data");
+            Assert.True(currentIndex == original.Length, "Decompressed data must have the same length as the original data");
         }
 
         VerifyInflatedData(original, buf2, level, zlib);
     }
-		
+
     private async Task<MemoryStream> DeflateAsync(byte[] data, int level, bool zlib)
     {
         var memoryStream = new MemoryStream();
@@ -115,14 +113,14 @@ public class InflaterDeflaterTestSuite
         await outStream.FinishAsync(CancellationToken.None);
         return memoryStream;
     }
-		
+
     private async Task RandomDeflateInflateAsync(int size, int level, bool zlib)
     {
         var buffer = Utils.GetDummyBytes(size, RandomSeed);
         var ms = await DeflateAsync(buffer, level, zlib);
         await InflateAsync(ms, buffer, level, zlib);
     }
-		
+
     private void VerifyInflatedData(byte[] original, byte[] buf2, int level, bool zlib)
     {
         for (var i = 0; i < original.Length; ++i)
@@ -151,9 +149,19 @@ public class InflaterDeflaterTestSuite
     /// <summary>
     /// Basic inflate/deflate test
     /// </summary>
-    [Test]
-    [Category("Base")]
-    public void InflateDeflateZlib([Range(0, 9)] int level)
+    [Theory]
+    [Trait("Category", "Base")]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    public void InflateDeflateZlib(int level)
     {
         RandomDeflateInflate(100000, level, true);
     }
@@ -161,10 +169,20 @@ public class InflaterDeflaterTestSuite
     /// <summary>
     /// Basic async inflate/deflate test
     /// </summary>
-    [Test]
-    [Category("Base")]
-    [Category("Async")]
-    public async Task InflateDeflateZlibAsync([Range(0, 9)] int level)
+    [Theory]
+    [Trait("Category", "Base")]
+    [Trait("Category", "Async")]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    public async Task InflateDeflateZlibAsync(int level)
     {
         await RandomDeflateInflateAsync(size: 100000, level, zlib: true);
     }
@@ -208,9 +226,8 @@ public class InflaterDeflaterTestSuite
     }
 
     // TODO: Fix this
-    [Test]
-    [Category("Base")]
-    [Explicit("Long-running")]
+    [Fact(Explicit = true, Skip = "Long-running")]
+    [Trait("Category", "Base")]
     public void SmallBlocks()
     {
         var buffer = new byte[10];
@@ -220,9 +237,19 @@ public class InflaterDeflaterTestSuite
     /// <summary>
     /// Basic inflate/deflate test
     /// </summary>
-    [Test]
-    [Category("Base")]
-    public void InflateDeflateNonZlib([Range(0, 9)] int level)
+    [Theory]
+    [Trait("Category", "Base")]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    public void InflateDeflateNonZlib(int level)
     {
         RandomDeflateInflate(100000, level, false);
     }
@@ -230,17 +257,27 @@ public class InflaterDeflaterTestSuite
     /// <summary>
     /// Basic async inflate/deflate test
     /// </summary>
-    [Test]
-    [Category("Base")]
-    [Category("Async")]
-    public async Task InflateDeflateNonZlibAsync([Range(0, 9)] int level)
+    [Theory]
+    [Trait("Category", "Base")]
+    [Trait("Category", "Async")]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    public async Task InflateDeflateNonZlibAsync(int level)
     {
         await RandomDeflateInflateAsync(100000, level, false);
     }
 
 
-    [Test]
-    [Category("Base")]
+    [Fact]
+    [Trait("Category", "Base")]
     public void CloseDeflatorWithNestedUsing()
     {
         string tempFile = null;
@@ -252,7 +289,7 @@ public class InflaterDeflaterTestSuite
         {
         }
 
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
         using (var diskFile = File.Create(tempFile))
@@ -266,64 +303,64 @@ public class InflaterDeflaterTestSuite
         File.Delete(tempFile);
     }
 
-    [Test]
-    [Category("Base")]
+    [Fact]
+    [Trait("Category", "Base")]
     public void DeflatorStreamOwnership()
     {
         var memStream = new TrackedMemoryStream();
         var s = new DeflaterOutputStream(memStream);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.Close();
 
-        ClassicAssert.IsTrue(memStream.IsClosed, "Should be closed after parent owner close");
-        ClassicAssert.IsTrue(memStream.IsDisposed, "Should be disposed after parent owner close");
+        Assert.True(memStream.IsClosed, "Should be closed after parent owner close");
+        Assert.True(memStream.IsDisposed, "Should be disposed after parent owner close");
 
         memStream = new TrackedMemoryStream();
         s = new DeflaterOutputStream(memStream);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.IsStreamOwner = false;
         s.Close();
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Should not be closed after parent owner close");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Should not be disposed after parent owner close");
+        Assert.False(memStream.IsClosed, "Should not be closed after parent owner close");
+        Assert.False(memStream.IsDisposed, "Should not be disposed after parent owner close");
     }
 
-    [Test]
-    [Category("Base")]
+    [Fact]
+    [Trait("Category", "Base")]
     public void InflatorStreamOwnership()
     {
         var memStream = new TrackedMemoryStream();
         var s = new InflaterInputStream(memStream);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.Close();
 
-        ClassicAssert.IsTrue(memStream.IsClosed, "Should be closed after parent owner close");
-        ClassicAssert.IsTrue(memStream.IsDisposed, "Should be disposed after parent owner close");
+        Assert.True(memStream.IsClosed, "Should be closed after parent owner close");
+        Assert.True(memStream.IsDisposed, "Should be disposed after parent owner close");
 
         memStream = new TrackedMemoryStream();
         s = new InflaterInputStream(memStream);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.IsStreamOwner = false;
         s.Close();
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Should not be closed after parent owner close");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Should not be disposed after parent owner close");
+        Assert.False(memStream.IsClosed, "Should not be closed after parent owner close");
+        Assert.False(memStream.IsDisposed, "Should not be disposed after parent owner close");
     }
 
-    [Test]
-    [Category("Base")]
+    [Fact]
+    [Trait("Category", "Base")]
     public void CloseInflatorWithNestedUsing()
     {
         string tempFile = null;
@@ -335,7 +372,7 @@ public class InflaterDeflaterTestSuite
         {
         }
 
-        ClassicAssert.IsNotNull(tempFile, "No permission to execute this test?");
+        Assert.NotNull(tempFile);
 
         tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
         using (var diskFile = File.Create(tempFile))
@@ -352,11 +389,11 @@ public class InflaterDeflaterTestSuite
         {
             var buffer = new char[5];
             var readCount = textReader.Read(buffer, 0, 5);
-            ClassicAssert.AreEqual(5, readCount);
+            Assert.Equal(5, readCount);
 
             var b = new StringBuilder();
             b.Append(buffer);
-            ClassicAssert.AreEqual("Hello", b.ToString());
+            Assert.Equal("Hello", b.ToString());
         }
 
         File.Delete(tempFile);

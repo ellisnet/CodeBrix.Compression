@@ -1,139 +1,132 @@
 using CodeBrix.Compression.Core;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System;
 using System.IO;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.Core;
 
-[TestFixture]
+[Trait("Category", "Core")]
 public class CoreTestSuite
 {
-    [Test]
-    [Category("Core")]
+    [Fact]
     public void FilterQuoting()
     {
         var filters = NameFilter.SplitQuoted("");
-        ClassicAssert.AreEqual(0, filters.Length);
+        Assert.Equal(0, filters.Length);
 
         filters = NameFilter.SplitQuoted(";;;");
-        ClassicAssert.AreEqual(4, filters.Length);
+        Assert.Equal(4, filters.Length);
         foreach (var filter in filters)
         {
-            ClassicAssert.AreEqual("", filter);
+            Assert.Equal("", filter);
         }
 
         filters = NameFilter.SplitQuoted("a;a;a;a;a");
-        ClassicAssert.AreEqual(5, filters.Length);
+        Assert.Equal(5, filters.Length);
         foreach (var filter in filters)
         {
-            ClassicAssert.AreEqual("a", filter);
+            Assert.Equal("a", filter);
         }
 
         filters = NameFilter.SplitQuoted(@"a\;;a\;;a\;;a\;;a\;");
-        ClassicAssert.AreEqual(5, filters.Length);
+        Assert.Equal(5, filters.Length);
         foreach (var filter in filters)
         {
-            ClassicAssert.AreEqual("a;", filter);
+            Assert.Equal("a;", filter);
         }
     }
 
-    [Test]
-    [Category("Core")]
+    [Fact]
     public void NullFilter()
     {
         var nf = new NameFilter(null);
-        ClassicAssert.IsTrue(nf.IsIncluded("o78i6bgv5rvu\\kj//&*"));
+        Assert.True(nf.IsIncluded("o78i6bgv5rvu\\kj//&*"));
     }
 
-    [Test]
-    [Category("Core")]
+    [Fact]
     public void ValidFilter()
     {
-        ClassicAssert.IsTrue(NameFilter.IsValidFilterExpression(null));
-        ClassicAssert.IsTrue(NameFilter.IsValidFilterExpression(string.Empty));
-        ClassicAssert.IsTrue(NameFilter.IsValidFilterExpression("a"));
+        Assert.True(NameFilter.IsValidFilterExpression(null));
+        Assert.True(NameFilter.IsValidFilterExpression(string.Empty));
+        Assert.True(NameFilter.IsValidFilterExpression("a"));
 
-        ClassicAssert.IsFalse(NameFilter.IsValidFilterExpression(@"\,)"));
-        ClassicAssert.IsFalse(NameFilter.IsValidFilterExpression(@"[]"));
+        Assert.False(NameFilter.IsValidFilterExpression(@"\,)"));
+        Assert.False(NameFilter.IsValidFilterExpression(@"[]"));
     }
 
     // Use a shorter name wrapper to make tests more legible
     private static string DropRoot(string s) => PathUtils.DropPathRoot(s);
-		
-    [Test]
-    [Category("Core")]
-    [Platform("Win")]
+
+    [Fact]
     public void DropPathRoot_Windows()
     {
-        ClassicAssert.AreEqual("file.txt", DropRoot(@"\\server\share\file.txt"));
-        ClassicAssert.AreEqual("file.txt", DropRoot(@"c:\file.txt"));
-        ClassicAssert.AreEqual(@"subdir with spaces\file.txt", DropRoot(@"z:\subdir with spaces\file.txt"));
-        ClassicAssert.AreEqual("", DropRoot(@"\\server\share\"));
-        ClassicAssert.AreEqual(@"server\share\file.txt", DropRoot(@"\server\share\file.txt"));
-        ClassicAssert.AreEqual(@"path\file.txt", DropRoot(@"\\server\share\\path\file.txt"));
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows only");
+        Assert.Equal("file.txt", DropRoot(@"\\server\share\file.txt"));
+        Assert.Equal("file.txt", DropRoot(@"c:\file.txt"));
+        Assert.Equal(@"subdir with spaces\file.txt", DropRoot(@"z:\subdir with spaces\file.txt"));
+        Assert.Equal("", DropRoot(@"\\server\share\"));
+        Assert.Equal(@"server\share\file.txt", DropRoot(@"\server\share\file.txt"));
+        Assert.Equal(@"path\file.txt", DropRoot(@"\\server\share\\path\file.txt"));
     }
 
-    [Test]
-    [Category("Core")]
-    [Platform(Exclude="Win")]
+    [Fact]
     public void DropPathRoot_Posix()
     {
-        ClassicAssert.AreEqual("file.txt", DropRoot("/file.txt"));
-        ClassicAssert.AreEqual(@"tmp/file.txt", DropRoot(@"/tmp/file.txt"));
-        ClassicAssert.AreEqual(@"tmp\file.txt", DropRoot(@"\tmp\file.txt"));
-        ClassicAssert.AreEqual(@"tmp/file.txt", DropRoot(@"\tmp/file.txt"));
-        ClassicAssert.AreEqual(@"tmp\file.txt", DropRoot(@"/tmp\file.txt"));
-        ClassicAssert.AreEqual("", DropRoot("/"));
+        if (OperatingSystem.IsWindows()) Assert.Skip("Posix only");
+        Assert.Equal("file.txt", DropRoot("/file.txt"));
+        Assert.Equal(@"tmp/file.txt", DropRoot(@"/tmp/file.txt"));
+        Assert.Equal(@"tmp\file.txt", DropRoot(@"\tmp\file.txt"));
+        Assert.Equal(@"tmp/file.txt", DropRoot(@"\tmp/file.txt"));
+        Assert.Equal(@"tmp\file.txt", DropRoot(@"/tmp\file.txt"));
+        Assert.Equal("", DropRoot("/"));
 
     }
 
-    [Test]
-    [TestCase(@"c:\file:+/")]
-    [TestCase(@"c:\file*?")]
-    [TestCase("c:\\file|\"")]
-    [TestCase(@"c:\file<>")]
-    [TestCase(@"c:file")]
-    [TestCase(@"c::file")]
-    [TestCase(@"c:?file")]
-    [TestCase(@"c:+file")]
-    [TestCase(@"cc:file")]
-    [Category("Core")]
+    [Theory]
+    [InlineData(@"c:\file:+/")]
+    [InlineData(@"c:\file*?")]
+    [InlineData("c:\\file|\"")]
+    [InlineData(@"c:\file<>")]
+    [InlineData(@"c:file")]
+    [InlineData(@"c::file")]
+    [InlineData(@"c:?file")]
+    [InlineData(@"c:+file")]
+    [InlineData(@"cc:file")]
     public void DropPathRoot_DoesNotThrowForInvalidPath(string path)
     {
-        Assert.DoesNotThrow(() => Console.WriteLine(PathUtils.DropPathRoot(path)));
+        var ex = Record.Exception(() => Console.WriteLine(PathUtils.DropPathRoot(path)));
+        Assert.Null(ex);
     }
 
-    [Test]
-    [Category("Core")]
+    [Fact]
     public void GetTempFileName_ReturnsNonExistingPath()
     {
         var tempFileName = PathUtils.GetTempFileName();
 
-        Assert.That(tempFileName, Is.Not.Null.And.Not.Empty);
-        Assert.That(File.Exists(tempFileName), Is.False, "GetTempFileName should return a path that does not yet exist");
-        Assert.That(Path.GetDirectoryName(tempFileName), Is.EqualTo(Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar)));
+        Assert.NotNull(tempFileName);
+        Assert.NotEmpty(tempFileName);
+        Assert.False(File.Exists(tempFileName), "GetTempFileName should return a path that does not yet exist");
+        Assert.Equal(Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar), Path.GetDirectoryName(tempFileName));
     }
 
-    [Test]
-    [Category("Core")]
+    [Fact]
     public void GetTempFileName_WithOriginal_ReturnsPathBasedOnOriginal()
     {
         var original = Path.Combine(Path.GetTempPath(), "myarchive.zip");
         var tempFileName = PathUtils.GetTempFileName(original);
 
-        Assert.That(tempFileName, Is.Not.Null.And.Not.Empty);
-        Assert.That(tempFileName, Does.StartWith(original + "."));
-        Assert.That(File.Exists(tempFileName), Is.False);
+        Assert.NotNull(tempFileName);
+        Assert.NotEmpty(tempFileName);
+        Assert.StartsWith(original + ".", tempFileName);
+        Assert.False(File.Exists(tempFileName));
     }
 
-    [Test]
-    [Category("Core")]
+    [Fact]
     public void GetTempFileName_ReturnsUniqueValues()
     {
         var first = PathUtils.GetTempFileName();
         var second = PathUtils.GetTempFileName();
 
-        Assert.That(first, Is.Not.EqualTo(second), "Successive calls should return different paths");
+        Assert.NotEqual(second, first);
     }
 }

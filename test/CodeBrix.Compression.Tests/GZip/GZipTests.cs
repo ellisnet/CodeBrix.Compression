@@ -1,24 +1,22 @@
 using CodeBrix.Compression.GZip;
 using CodeBrix.Compression.Tests.TestSupport;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using System;
 using System.IO;
 using System.Text;
+using Xunit;
 
 namespace CodeBrix.Compression.Tests.GZip;
 
 /// <summary>
 /// This class contains test cases for GZip compression
 /// </summary>
-[TestFixture]
+[Trait("Category", "GZip")]
 public class GZipTestSuite
 {
     /// <summary>
     /// Basic compress/decompress test
     /// </summary>
-    [Test]
-    [Category("GZip")]
+    [Fact]
     public void TestGZip()
     {
         var ms = new MemoryStream();
@@ -48,42 +46,40 @@ public class GZipTestSuite
             count -= numRead;
         }
 
-        ClassicAssert.AreEqual(0, count);
+        Assert.Equal(0, count);
 
         for (var i = 0; i < buf.Length; ++i)
         {
-            ClassicAssert.AreEqual(buf2[i], buf[i]);
+            Assert.Equal(buf2[i], buf[i]);
         }
     }
 
     /// <summary>
     /// Writing GZip headers is delayed so that this stream can be used with HTTP/IIS.
     /// </summary>
-    [Test]
-    [Category("GZip")]
+    [Fact]
     public void DelayedHeaderWriteNoData()
     {
         using var ms = new MemoryStream();
-        ClassicAssert.Zero(ms.Length);
+        Assert.Equal(0, ms.Length);
 
         using (new GZipOutputStream(ms))
         {
-            ClassicAssert.Zero(ms.Length);
+            Assert.Equal(0, ms.Length);
         }
 
-        ClassicAssert.NotZero(ms.ToArray().Length);
+        Assert.NotEqual(0, ms.ToArray().Length);
     }
 
 
     /// <summary>
     /// Variant of DelayedHeaderWriteNoData testing flushing for https://github.com/icsharpcode/SharpZipLib/issues/382
     /// </summary>
-    [Test]
-    [Category("GZip")]
+    [Fact]
     public void DelayedHeaderWriteFlushNoData()
     {
         var ms = new MemoryStream();
-        ClassicAssert.AreEqual(0, ms.Length);
+        Assert.Equal(0, ms.Length);
 
         using (var outStream = new GZipOutputStream(ms) { IsStreamOwner = false })
         {
@@ -102,44 +98,42 @@ public class GZipTestSuite
 
         var data = readStream.ToArray();
 
-        Assert.That(data, Is.Empty, "Should not have any decompressed data");
+        Assert.Empty(data);
     }
 
     /// <summary>
     /// Writing GZip headers is delayed so that this stream can be used with HTTP/IIS.
     /// </summary>
-    [Test]
-    [Category("GZip")]
+    [Fact]
     public void DelayedHeaderWriteWithData()
     {
         var ms = new MemoryStream();
-        ClassicAssert.AreEqual(0, ms.Length);
+        Assert.Equal(0, ms.Length);
         using (var outStream = new GZipOutputStream(ms))
         {
-            ClassicAssert.AreEqual(0, ms.Length);
+            Assert.Equal(0, ms.Length);
             outStream.WriteByte(45);
 
             // Should in fact contain header right now with
             // 1 byte in the compression pipeline
-            ClassicAssert.AreEqual(10, ms.Length);
+            Assert.Equal(10, ms.Length);
         }
         var data = ms.ToArray();
 
-        ClassicAssert.IsTrue(data.Length > 0);
+        Assert.True(data.Length > 0);
     }
 
     /// <summary>
     /// variant of DelayedHeaderWriteWithData to test https://github.com/icsharpcode/SharpZipLib/issues/382
     /// </summary>
-    [Test]
-    [Category("GZip")]
+    [Fact]
     public void DelayedHeaderWriteFlushWithData()
     {
         var ms = new MemoryStream();
-        ClassicAssert.AreEqual(0, ms.Length);
+        Assert.Equal(0, ms.Length);
         using (var outStream = new GZipOutputStream(ms) { IsStreamOwner = false })
         {
-            ClassicAssert.AreEqual(0, ms.Length);
+            Assert.Equal(0, ms.Length);
 
             // #382 - test flushing the stream before writing to it.
             outStream.Flush();
@@ -157,11 +151,10 @@ public class GZipTestSuite
 
         // Check that the data was read
         var data = readStream.ToArray();
-        Assert.That(data, Is.EqualTo(new byte[] { 45 }), "Decompressed data should match initial data");
+        Assert.Equal(new byte[] { 45 }, data);
     }
 
-    [Test]
-    [Category("GZip")]
+    [Fact]
     public void ZeroLengthInputStream()
     {
         var gzi = new GZipInputStream(new MemoryStream());
@@ -176,67 +169,65 @@ public class GZipTestSuite
             exception = true;
         }
 
-        ClassicAssert.IsFalse(exception, "reading from an empty stream should not cause an exception");
-        Assert.That(retval, Is.EqualTo(-1), "should yield -1 byte value");
+        Assert.False(exception, "reading from an empty stream should not cause an exception");
+        Assert.Equal(-1, retval);
     }
 
-    [Test]
-    [Category("GZip")]
+    [Fact]
     public void OutputStreamOwnership()
     {
         var memStream = new TrackedMemoryStream();
         var s = new GZipOutputStream(memStream);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.Close();
 
-        ClassicAssert.IsTrue(memStream.IsClosed, "Should be closed after parent owner close");
-        ClassicAssert.IsTrue(memStream.IsDisposed, "Should be disposed after parent owner close");
+        Assert.True(memStream.IsClosed, "Should be closed after parent owner close");
+        Assert.True(memStream.IsDisposed, "Should be disposed after parent owner close");
 
         memStream = new TrackedMemoryStream();
         s = new GZipOutputStream(memStream);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.IsStreamOwner = false;
         s.Close();
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Should not be closed after parent owner close");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Should not be disposed after parent owner close");
+        Assert.False(memStream.IsClosed, "Should not be closed after parent owner close");
+        Assert.False(memStream.IsDisposed, "Should not be disposed after parent owner close");
     }
 
-    [Test]
-    [Category("GZip")]
+    [Fact]
     public void InputStreamOwnership()
     {
         var memStream = new TrackedMemoryStream();
         var s = new GZipInputStream(memStream);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.Close();
 
-        ClassicAssert.IsTrue(memStream.IsClosed, "Should be closed after parent owner close");
-        ClassicAssert.IsTrue(memStream.IsDisposed, "Should be disposed after parent owner close");
+        Assert.True(memStream.IsClosed, "Should be closed after parent owner close");
+        Assert.True(memStream.IsDisposed, "Should be disposed after parent owner close");
 
         memStream = new TrackedMemoryStream();
         s = new GZipInputStream(memStream);
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Shouldnt be closed initially");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Shouldnt be disposed initially");
+        Assert.False(memStream.IsClosed, "Shouldnt be closed initially");
+        Assert.False(memStream.IsDisposed, "Shouldnt be disposed initially");
 
         s.IsStreamOwner = false;
         s.Close();
 
-        ClassicAssert.IsFalse(memStream.IsClosed, "Should not be closed after parent owner close");
-        ClassicAssert.IsFalse(memStream.IsDisposed, "Should not be disposed after parent owner close");
+        Assert.False(memStream.IsClosed, "Should not be closed after parent owner close");
+        Assert.False(memStream.IsDisposed, "Should not be disposed after parent owner close");
     }
 
-    [Test]
+    [Fact]
     public void DoubleFooter()
     {
         var memStream = new TrackedMemoryStream();
@@ -244,10 +235,10 @@ public class GZipTestSuite
         s.Finish();
         var length = memStream.Length;
         s.Close();
-        ClassicAssert.AreEqual(length, memStream.ToArray().Length);
+        Assert.Equal(length, memStream.ToArray().Length);
     }
 
-    [Test]
+    [Fact]
     public void DoubleClose()
     {
         var memStream = new TrackedMemoryStream();
@@ -263,30 +254,30 @@ public class GZipTestSuite
         }
     }
 
-    [Test]
+    [Fact]
     public void WriteAfterFinish()
     {
         var memStream = new TrackedMemoryStream();
         var s = new GZipOutputStream(memStream);
         s.Finish();
 
-        Assert.Throws<InvalidOperationException>(() => s.WriteByte(value: 7), "Write should fail");
+        Assert.Throws<InvalidOperationException>(() => s.WriteByte(value: 7));
     }
 
-    [Test]
+    [Fact]
     public void WriteAfterClose()
     {
         var memStream = new TrackedMemoryStream();
         var s = new GZipOutputStream(memStream);
         s.Close();
 
-        Assert.Throws<InvalidOperationException>(() => s.WriteByte(value: 7), "Write should fail");
+        Assert.Throws<InvalidOperationException>(() => s.WriteByte(value: 7));
     }
 
     /// <summary>
     /// Verify that if a decompression was successful for at least one block we're exiting gracefully.
     /// </summary>
-    [Test]
+    [Fact]
     public void TrailingGarbage()
     {
         /* ARRANGE */
@@ -325,10 +316,10 @@ public class GZipTestSuite
         }
 
         /* ASSERT */
-        ClassicAssert.Zero(count);
+        Assert.Equal(0, count);
         for (var i = 0; i < buf.Length; ++i)
         {
-            ClassicAssert.AreEqual(buf2[i], buf[i]);
+            Assert.Equal(buf2[i], buf[i]);
         }
     }
 
@@ -337,8 +328,7 @@ public class GZipTestSuite
     /// is flushed through to the underlying stream and can be successfully read back
     /// even if the stream is not yet finished.
     /// </summary>
-    [Test]
-    [Category("GZip")]
+    [Fact]
     public void FlushToUnderlyingStream()
     {
         var ms = new MemoryStream();
@@ -377,17 +367,19 @@ public class GZipTestSuite
             }
         }
 
-        ClassicAssert.AreEqual(0, count);
+        Assert.Equal(0, count);
 
         for (var i = 0; i < buf.Length; ++i)
         {
-            ClassicAssert.AreEqual(buf2[i], buf[i]);
+            Assert.Equal(buf2[i], buf[i]);
         }
     }
 
-    [Test]
-    [Category("GZip")]
-    public void SmallBufferDecompression([Values(0, 1, 3)] int seed)
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void SmallBufferDecompression(int seed)
     {
         var outputBufferSize = 100000;
         var outputBuffer = new byte[outputBufferSize];
@@ -400,7 +392,7 @@ public class GZipTestSuite
         }
 
         msGzip.Seek(0, SeekOrigin.Begin);
-	
+
         using (var gzis = new GZipInputStream(msGzip))
         using (var msRaw = new MemoryStream())
         {
@@ -413,7 +405,7 @@ public class GZipTestSuite
             var resultBuffer = msRaw.ToArray();
             for (var i = 0; i < resultBuffer.Length; i++)
             {
-                ClassicAssert.AreEqual(inputBuffer[i], resultBuffer[i]);
+                Assert.Equal(inputBuffer[i], resultBuffer[i]);
             }
         }
     }
@@ -425,8 +417,8 @@ public class GZipTestSuite
     /// <remarks>
     /// Test for https://github.com/icsharpcode/SharpZipLib/issues/379
     /// </remarks>
-    [Test]
-    [Category("Zip")]
+    [Fact]
+    [Trait("Category", "Zip")]
     public void ShouldGracefullyHandleReadingANonReadableStream()
     {
         MemoryStream ms = new SelfClosingStream();
@@ -445,11 +437,9 @@ public class GZipTestSuite
         }
     }
 
-    [Test]
-    [Category("GZip")]
-    [Category("Performance")]
-    [Category("Long Running")]
-    [Explicit("Long Running")]
+    [Fact(Explicit = true, Skip = "Long Running")]
+    [Trait("Category", "Performance")]
+    [Trait("Category", "Long Running")]
     public void WriteThroughput()
     {
         PerformanceTesting.TestWrite(
@@ -458,10 +448,8 @@ public class GZipTestSuite
         );
     }
 
-    [Test]
-    [Category("GZip")]
-    [Category("Performance")]
-    [Explicit("Long Running")]
+    [Fact(Explicit = true, Skip = "Long Running")]
+    [Trait("Category", "Performance")]
     public void ReadWriteThroughput()
     {
         PerformanceTesting.TestReadWrite(
@@ -474,8 +462,7 @@ public class GZipTestSuite
     /// <summary>
     /// Basic compress/decompress test
     /// </summary>
-    [Test]
-    [Category("GZip")]
+    [Fact]
     public void OriginalFilename()
     {
         var content = "FileContents";
@@ -498,8 +485,8 @@ public class GZipTestSuite
         {
             var readBuffer = new byte[content.Length];
             inStream.ReadExactly(readBuffer, 0, readBuffer.Length);
-            ClassicAssert.AreEqual(content, Encoding.ASCII.GetString(readBuffer));
-            ClassicAssert.AreEqual("file.ext", inStream.GetFilename());
+            Assert.Equal(content, Encoding.ASCII.GetString(readBuffer));
+            Assert.Equal("file.ext", inStream.GetFilename());
         }
     }
 }
