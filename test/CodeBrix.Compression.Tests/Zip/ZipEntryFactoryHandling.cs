@@ -94,12 +94,12 @@ public class ZipEntryFactoryHandling : ZipBase
             return;
         }
 
-        tempDir = Path.Combine(tempDir, "SharpZipTest");
+        tempDir = Path.Combine(tempDir, "CreatedFileEntriesUsesExpectedAttributes_test");
         Directory.CreateDirectory(tempDir);
 
         try
         {
-            var tempFile = Path.Combine(tempDir, "SharpZipTest.Zip");
+            var tempFile = Path.Combine(tempDir, "CreatedFileEntriesUsesExpectedAttributes_test.zip");
 
             using (var f = File.Create(tempFile, 1024))
             {
@@ -151,7 +151,7 @@ public class ZipEntryFactoryHandling : ZipBase
             return;
         }
 
-        tempDir = Path.Combine(tempDir, "SharpZipTest");
+        tempDir = Path.Combine(tempDir, "CreatedFileEntriesUsesExpectedTime_test");
 
         // Note the seconds returned will be even!
         var expectedTime = new DateTime(2100, 2, 27, 11, 07, 56);
@@ -161,7 +161,7 @@ public class ZipEntryFactoryHandling : ZipBase
         try
         {
 
-            var tempFile = Path.Combine(tempDir, "SharpZipTest.Zip");
+            var tempFile = Path.Combine(tempDir, "CreatedFileEntriesUsesExpectedTime_test.zip");
 
             using (var f = File.Create(tempFile, 1024))
             {
@@ -220,7 +220,7 @@ public class ZipEntryFactoryHandling : ZipBase
             return;
         }
 
-        tempDir = Path.Combine(tempDir, "SharpZipTest");
+        tempDir = Path.Combine(tempDir, "CreatedDirectoryEntriesUsesExpectedTime_test");
 
         // Note the seconds returned will be even!
         var expectedTime = new DateTime(2100, 2, 27, 11, 07, 56);
@@ -230,7 +230,7 @@ public class ZipEntryFactoryHandling : ZipBase
         try
         {
 
-            var tempFile = Path.Combine(tempDir, "SharpZipTest.Zip");
+            var tempFile = Path.Combine(tempDir, "CreatedDirectoryEntriesUsesExpectedTime_test.zip");
 
             using (var f = File.Create(tempFile, 1024))
             {

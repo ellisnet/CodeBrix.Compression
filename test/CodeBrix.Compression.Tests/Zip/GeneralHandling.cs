@@ -458,23 +458,29 @@ public class GeneralHandling : ZipBase
     [Trait("Category", "CreatesTempFile")]
     public void PartialStreamClosing()
     {
-        var tempFile = GetTempFilePath();
-        Assert.NotNull(tempFile);
+        var tempDir = GetTempFilePath();
+        Assert.NotNull(tempDir);
 
-        if (tempFile != null)
+        if (tempDir != null)
         {
-            tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
-            MakeZipFile(tempFile, new String[] { "Farriera", "Champagne", "Urban myth" }, 10, "Aha");
-
-            using (var zipFile = new ZipFile(tempFile))
+            var tempFile = Path.Combine(tempDir, "PartialStreamClosing_test.zip");
+            try
             {
-                var stream = zipFile.GetInputStream(0);
-                stream.Close();
+                MakeZipFile(tempFile, new String[] { "Farriera", "Champagne", "Urban myth" }, 10, "Aha");
 
-                stream = zipFile.GetInputStream(1);
-                zipFile.Close();
+                using (var zipFile = new ZipFile(tempFile))
+                {
+                    var stream = zipFile.GetInputStream(0);
+                    stream.Close();
+
+                    stream = zipFile.GetInputStream(1);
+                    zipFile.Close();
+                }
             }
-            File.Delete(tempFile);
+            finally
+            {
+                if (File.Exists(tempFile)) File.Delete(tempFile);
+            }
         }
     }
 
@@ -514,7 +520,7 @@ public class GeneralHandling : ZipBase
     public void TestLargeZipFile()
     {
         var tempFile = @"g:\\tmp";
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
+        tempFile = Path.Combine(tempFile, "TestLargeZipFile_test.zip");
         TestLargeZip(tempFile, 8100);
     }
 
@@ -541,7 +547,7 @@ public class GeneralHandling : ZipBase
             data[i] = nextValue;
         }
 
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
+        tempFile = Path.Combine(tempFile, "MakeLargeZipFile_test.zip");
         Console.WriteLine("Starting at {0}", DateTime.Now);
         try
         {

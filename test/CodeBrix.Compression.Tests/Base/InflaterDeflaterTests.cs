@@ -280,27 +280,32 @@ public class InflaterDeflaterTestSuite
     [Trait("Category", "Base")]
     public void CloseDeflatorWithNestedUsing()
     {
-        string tempFile = null;
+        string tempDir = null;
         try
         {
-            tempFile = Path.GetTempPath();
+            tempDir = Path.GetTempPath();
         }
         catch (SecurityException)
         {
         }
 
-        Assert.NotNull(tempFile);
+        Assert.NotNull(tempDir);
 
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
-        using (var diskFile = File.Create(tempFile))
-        using (var deflator = new DeflaterOutputStream(diskFile))
-        using (var txtFile = new StreamWriter(deflator))
+        var tempFile = Path.Combine(tempDir, "CloseDeflatorWithNestedUsing_test.zip");
+        try
         {
-            txtFile.Write("Hello");
-            txtFile.Flush();
+            using (var diskFile = File.Create(tempFile))
+            using (var deflator = new DeflaterOutputStream(diskFile))
+            using (var txtFile = new StreamWriter(deflator))
+            {
+                txtFile.Write("Hello");
+                txtFile.Flush();
+            }
         }
-
-        File.Delete(tempFile);
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
     }
 
     [Fact]
@@ -363,39 +368,44 @@ public class InflaterDeflaterTestSuite
     [Trait("Category", "Base")]
     public void CloseInflatorWithNestedUsing()
     {
-        string tempFile = null;
+        string tempDir = null;
         try
         {
-            tempFile = Path.GetTempPath();
+            tempDir = Path.GetTempPath();
         }
         catch (SecurityException)
         {
         }
 
-        Assert.NotNull(tempFile);
+        Assert.NotNull(tempDir);
 
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
-        using (var diskFile = File.Create(tempFile))
-        using (var deflator = new DeflaterOutputStream(diskFile))
-        using (var textWriter = new StreamWriter(deflator))
+        var tempFile = Path.Combine(tempDir, "CloseInflatorWithNestedUsing_test.zip");
+        try
         {
-            textWriter.Write("Hello");
-            textWriter.Flush();
-        }
+            using (var diskFile = File.Create(tempFile))
+            using (var deflator = new DeflaterOutputStream(diskFile))
+            using (var textWriter = new StreamWriter(deflator))
+            {
+                textWriter.Write("Hello");
+                textWriter.Flush();
+            }
 
-        using (var diskFile = File.OpenRead(tempFile))
-        using (var deflator = new InflaterInputStream(diskFile))
-        using (var textReader = new StreamReader(deflator))
+            using (var diskFile = File.OpenRead(tempFile))
+            using (var deflator = new InflaterInputStream(diskFile))
+            using (var textReader = new StreamReader(deflator))
+            {
+                var buffer = new char[5];
+                var readCount = textReader.Read(buffer, 0, 5);
+                Assert.Equal(5, readCount);
+
+                var b = new StringBuilder();
+                b.Append(buffer);
+                Assert.Equal("Hello", b.ToString());
+            }
+        }
+        finally
         {
-            var buffer = new char[5];
-            var readCount = textReader.Read(buffer, 0, 5);
-            Assert.Equal(5, readCount);
-
-            var b = new StringBuilder();
-            b.Append(buffer);
-            Assert.Equal("Hello", b.ToString());
+            if (File.Exists(tempFile)) File.Delete(tempFile);
         }
-
-        File.Delete(tempFile);
     }
 }

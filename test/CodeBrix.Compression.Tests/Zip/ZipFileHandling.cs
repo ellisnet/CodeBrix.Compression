@@ -266,41 +266,45 @@ public class ZipFileHandling : ZipBase
     public void BasicEncryptionToDisk()
     {
         const string testValue = "0001000";
-        var tempFile = GetTempFilePath();
-        Assert.NotNull(tempFile);
+        var tempDir = GetTempFilePath();
+        Assert.NotNull(tempDir);
 
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
-
-        using (var zf = ZipFile.Create(tempFile))
+        var tempFile = Path.Combine(tempDir, "BasicEncryptionToDisk_test.zip");
+        try
         {
-            zf.Password = "Hello";
-
-            var m = new StringMemoryDataSource(testValue);
-            zf.BeginUpdate();
-            zf.Add(m, "a.dat");
-            zf.CommitUpdate();
-        }
-
-        using (var zf = new ZipFile(tempFile))
-        {
-            zf.Password = "Hello";
-            Assert.True(zf.TestArchive(testData: true), "Archive test should pass");
-        }
-
-        using (var zf = new ZipFile(tempFile))
-        {
-            zf.Password = "Hello";
-            var ze = zf[0];
-
-            Assert.True(ze.IsCrypted, "Entry should be encrypted");
-            using (var r = new StreamReader(zf.GetInputStream(entryIndex: 0)))
+            using (var zf = ZipFile.Create(tempFile))
             {
-                var data = r.ReadToEnd();
-                Assert.Equal(testValue, data);
+                zf.Password = "Hello";
+
+                var m = new StringMemoryDataSource(testValue);
+                zf.BeginUpdate();
+                zf.Add(m, "a.dat");
+                zf.CommitUpdate();
+            }
+
+            using (var zf = new ZipFile(tempFile))
+            {
+                zf.Password = "Hello";
+                Assert.True(zf.TestArchive(testData: true), "Archive test should pass");
+            }
+
+            using (var zf = new ZipFile(tempFile))
+            {
+                zf.Password = "Hello";
+                var ze = zf[0];
+
+                Assert.True(ze.IsCrypted, "Entry should be encrypted");
+                using (var r = new StreamReader(zf.GetInputStream(entryIndex: 0)))
+                {
+                    var data = r.ReadToEnd();
+                    Assert.Equal(testValue, data);
+                }
             }
         }
-
-        File.Delete(tempFile);
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
     }
 
     [Fact]
@@ -474,52 +478,57 @@ public class ZipFileHandling : ZipBase
     [Trait("Category", "CreatesTempFile")]
     public void AddAndDeleteEntries()
     {
-        var tempFile = GetTempFilePath();
-        Assert.NotNull(tempFile);
+        var tempDir = GetTempFilePath();
+        Assert.NotNull(tempDir);
 
-        var addFile = Path.Combine(tempFile, "a.dat");
+        var addFile = Path.Combine(tempDir, "a.dat");
         MakeTempFile(addFile, 1);
 
-        var addFile2 = Path.Combine(tempFile, "b.dat");
+        var addFile2 = Path.Combine(tempDir, "b.dat");
         MakeTempFile(addFile2, 259);
 
-        var addDirectory = Path.Combine(tempFile, "dir");
+        var addDirectory = Path.Combine(tempDir, "dir");
 
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
+        var tempFile = Path.Combine(tempDir, "AddAndDeleteEntries_test.zip");
 
-        using (var f = ZipFile.Create(tempFile))
+        try
         {
-            f.BeginUpdate();
-            f.Add(addFile);
-            f.Add(addFile2);
-            f.AddDirectory(addDirectory);
-            f.CommitUpdate();
-            ZipTesting.AssertPassesTestArchive(f);
-        }
+            using (var f = ZipFile.Create(tempFile))
+            {
+                f.BeginUpdate();
+                f.Add(addFile);
+                f.Add(addFile2);
+                f.AddDirectory(addDirectory);
+                f.CommitUpdate();
+                ZipTesting.AssertPassesTestArchive(f);
+            }
 
-        using (var f = new ZipFile(tempFile))
+            using (var f = new ZipFile(tempFile))
+            {
+                Assert.Equal(3, f.Count);
+                ZipTesting.AssertPassesTestArchive(f);
+
+                // Delete file
+                f.BeginUpdate();
+                f.Delete(f[0]);
+                f.CommitUpdate();
+                Assert.Equal(2, f.Count);
+                ZipTesting.AssertPassesTestArchive(f);
+
+                // Delete directory
+                f.BeginUpdate();
+                f.Delete(f[1]);
+                f.CommitUpdate();
+                Assert.Equal(1, f.Count);
+                ZipTesting.AssertPassesTestArchive(f);
+            }
+        }
+        finally
         {
-            Assert.Equal(3, f.Count);
-            ZipTesting.AssertPassesTestArchive(f);
-
-            // Delete file
-            f.BeginUpdate();
-            f.Delete(f[0]);
-            f.CommitUpdate();
-            Assert.Equal(2, f.Count);
-            ZipTesting.AssertPassesTestArchive(f);
-
-            // Delete directory
-            f.BeginUpdate();
-            f.Delete(f[1]);
-            f.CommitUpdate();
-            Assert.Equal(1, f.Count);
-            ZipTesting.AssertPassesTestArchive(f);
+            if (File.Exists(addFile)) File.Delete(addFile);
+            if (File.Exists(addFile2)) File.Delete(addFile2);
+            if (File.Exists(tempFile)) File.Delete(tempFile);
         }
-
-        File.Delete(addFile);
-        File.Delete(addFile2);
-        File.Delete(tempFile);
     }
 
     /// <summary>
@@ -530,10 +539,10 @@ public class ZipFileHandling : ZipBase
     [Trait("Category", "CreatesTempFile")]
     public void RoundTrip()
     {
-        var tempFile = GetTempFilePath();
-        Assert.NotNull(tempFile);
+        var tempDir = GetTempFilePath();
+        Assert.NotNull(tempDir);
 
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
+        var tempFile = Path.Combine(tempDir, "RoundTrip_test.zip");
 
         try
         {
@@ -549,7 +558,7 @@ public class ZipFileHandling : ZipBase
         }
         finally
         {
-            File.Delete(tempFile);
+            if (File.Exists(tempFile)) File.Delete(tempFile);
         }
     }
 
@@ -598,17 +607,17 @@ public class ZipFileHandling : ZipBase
     [Trait("Category", "Zip")]
     public void AddToEmptyArchive()
     {
-        var tempFile = GetTempFilePath();
-        Assert.NotNull(tempFile);
+        var tempDir = GetTempFilePath();
+        Assert.NotNull(tempDir);
 
-        var addFile = Path.Combine(tempFile, "a.dat");
+        var addFile = Path.Combine(tempDir, "a.dat");
 
         MakeTempFile(addFile, 1);
 
+        var tempFile = Path.Combine(tempDir, "AddToEmptyArchive_test.zip");
+
         try
         {
-            tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
-
             using (var f = ZipFile.Create(tempFile))
             {
                 f.BeginUpdate();
@@ -628,12 +637,11 @@ public class ZipFileHandling : ZipBase
                 ZipTesting.AssertPassesTestArchive(f);
                 f.Close();
             }
-
-            File.Delete(tempFile);
         }
         finally
         {
-            File.Delete(addFile);
+            if (File.Exists(addFile)) File.Delete(addFile);
+            if (File.Exists(tempFile)) File.Delete(tempFile);
         }
     }
 
@@ -641,25 +649,30 @@ public class ZipFileHandling : ZipBase
     [Trait("Category", "Zip")]
     public void CreateEmptyArchive()
     {
-        var tempFile = GetTempFilePath();
-        Assert.NotNull(tempFile);
+        var tempDir = GetTempFilePath();
+        Assert.NotNull(tempDir);
 
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
+        var tempFile = Path.Combine(tempDir, "CreateEmptyArchive_test.zip");
 
-        using (var f = ZipFile.Create(tempFile))
+        try
         {
-            f.BeginUpdate();
-            f.CommitUpdate();
-            ZipTesting.AssertPassesTestArchive(f);
-            f.Close();
-        }
+            using (var f = ZipFile.Create(tempFile))
+            {
+                f.BeginUpdate();
+                f.CommitUpdate();
+                ZipTesting.AssertPassesTestArchive(f);
+                f.Close();
+            }
 
-        using (var f = new ZipFile(tempFile))
+            using (var f = new ZipFile(tempFile))
+            {
+                Assert.Equal(0, f.Count);
+            }
+        }
+        finally
         {
-            Assert.Equal(0, f.Count);
+            if (File.Exists(tempFile)) File.Delete(tempFile);
         }
-
-        File.Delete(tempFile);
     }
 
     [Fact]
@@ -698,15 +711,15 @@ public class ZipFileHandling : ZipBase
     [Trait("Category", "CreatesTempFile")]
     public void FindEntriesInArchiveWithLongComment()
     {
-        var tempFile = GetTempFilePath();
-        Assert.NotNull(tempFile);
+        var tempDir = GetTempFilePath();
+        Assert.NotNull(tempDir);
 
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
-        var longComment = new String('A', 65535);
-        MakeZipFile(tempFile, "", 1, 1, longComment);
-
+        var tempFile = Path.Combine(tempDir, "FindEntriesInArchiveWithLongComment_test.zip");
         try
         {
+            var longComment = new String('A', 65535);
+            MakeZipFile(tempFile, "", 1, 1, longComment);
+
             using var zipFile = new ZipFile(tempFile);
             foreach (var e in zipFile)
             {
@@ -717,7 +730,7 @@ public class ZipFileHandling : ZipBase
         }
         finally
         {
-            File.Delete(tempFile);
+            if (File.Exists(tempFile)) File.Delete(tempFile);
         }
     }
 
@@ -732,35 +745,41 @@ public class ZipFileHandling : ZipBase
     [Trait("Category", "CreatesTempFile")]
     public void FindEntriesInArchiveExtraData()
     {
-        var tempFile = GetTempFilePath();
-        Assert.NotNull(tempFile);
+        var tempDir = GetTempFilePath();
+        Assert.NotNull(tempDir);
 
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
-        var longComment = new String('A', 65535);
-        var tempStream = File.Create(tempFile);
-        MakeZipFile(tempStream, false, "", 1, 1, longComment);
-
-        tempStream.WriteByte(85);
-        tempStream.Close();
-
-        var fails = false;
+        var tempFile = Path.Combine(tempDir, "FindEntriesInArchiveExtraData_test.zip");
         try
         {
-            using var zipFile = new ZipFile(tempFile);
-            foreach (var e in zipFile)
-            {
-                var instream = zipFile.GetInputStream(e);
-                CheckKnownEntry(instream, 1);
-            }
-            zipFile.Close();
-        }
-        catch
-        {
-            fails = true;
-        }
+            var longComment = new String('A', 65535);
+            var tempStream = File.Create(tempFile);
+            MakeZipFile(tempStream, false, "", 1, 1, longComment);
 
-        File.Delete(tempFile);
-        Assert.True(fails, "Currently zip file wont be found");
+            tempStream.WriteByte(85);
+            tempStream.Close();
+
+            var fails = false;
+            try
+            {
+                using var zipFile = new ZipFile(tempFile);
+                foreach (var e in zipFile)
+                {
+                    var instream = zipFile.GetInputStream(e);
+                    CheckKnownEntry(instream, 1);
+                }
+                zipFile.Close();
+            }
+            catch
+            {
+                fails = true;
+            }
+
+            Assert.True(fails, "Currently zip file wont be found");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
     }
 
     /// <summary>
@@ -771,40 +790,46 @@ public class ZipFileHandling : ZipBase
     [Trait("Category", "CreatesTempFile")]
     public void FindEntry()
     {
-        var tempFile = GetTempFilePath();
-        Assert.NotNull(tempFile);
+        var tempDir = GetTempFilePath();
+        Assert.NotNull(tempDir);
 
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
-        MakeZipFile(tempFile, new string[] { "Farriera", "Champagne", "Urban myth" }, 10, "Aha");
-
-        using (var zipFile = new ZipFile(tempFile))
+        var tempFile = Path.Combine(tempDir, "FindEntry_test.zip");
+        try
         {
-            Assert.Equal(3, zipFile.Count);
+            MakeZipFile(tempFile, new string[] { "Farriera", "Champagne", "Urban myth" }, 10, "Aha");
 
-            var testIndex = zipFile.FindEntry("Farriera", false);
-            Assert.Equal(0, testIndex);
-            Assert.True(string.Compare(zipFile[testIndex].Name, "Farriera", StringComparison.Ordinal) == 0);
+            using (var zipFile = new ZipFile(tempFile))
+            {
+                Assert.Equal(3, zipFile.Count);
 
-            testIndex = zipFile.FindEntry("Farriera", true);
-            Assert.Equal(0, testIndex);
-            Assert.True(string.Compare(zipFile[testIndex].Name, "Farriera", StringComparison.OrdinalIgnoreCase) == 0);
+                var testIndex = zipFile.FindEntry("Farriera", false);
+                Assert.Equal(0, testIndex);
+                Assert.True(string.Compare(zipFile[testIndex].Name, "Farriera", StringComparison.Ordinal) == 0);
 
-            testIndex = zipFile.FindEntry("urban mYTH", false);
-            Assert.Equal(-1, testIndex);
+                testIndex = zipFile.FindEntry("Farriera", true);
+                Assert.Equal(0, testIndex);
+                Assert.True(string.Compare(zipFile[testIndex].Name, "Farriera", StringComparison.OrdinalIgnoreCase) == 0);
 
-            testIndex = zipFile.FindEntry("urban mYTH", true);
-            Assert.Equal(2, testIndex);
-            Assert.True(string.Compare(zipFile[testIndex].Name, "urban mYTH", StringComparison.OrdinalIgnoreCase) == 0);
+                testIndex = zipFile.FindEntry("urban mYTH", false);
+                Assert.Equal(-1, testIndex);
 
-            testIndex = zipFile.FindEntry("Champane.", false);
-            Assert.Equal(-1, testIndex);
+                testIndex = zipFile.FindEntry("urban mYTH", true);
+                Assert.Equal(2, testIndex);
+                Assert.True(string.Compare(zipFile[testIndex].Name, "urban mYTH", StringComparison.OrdinalIgnoreCase) == 0);
 
-            testIndex = zipFile.FindEntry("Champane.", true);
-            Assert.Equal(-1, testIndex);
+                testIndex = zipFile.FindEntry("Champane.", false);
+                Assert.Equal(-1, testIndex);
 
-            zipFile.Close();
+                testIndex = zipFile.FindEntry("Champane.", true);
+                Assert.Equal(-1, testIndex);
+
+                zipFile.Close();
+            }
         }
-        File.Delete(tempFile);
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
     }
 
     /// <summary>
@@ -815,19 +840,24 @@ public class ZipFileHandling : ZipBase
     [Trait("Category", "CreatesTempFile")]
     public void HandlesNoEntries()
     {
-        var tempFile = GetTempFilePath();
-        Assert.NotNull(tempFile);
+        var tempDir = GetTempFilePath();
+        Assert.NotNull(tempDir);
 
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
-        MakeZipFile(tempFile, "", 0, 1, "Aha");
-
-        using (var zipFile = new ZipFile(tempFile))
+        var tempFile = Path.Combine(tempDir, "HandlesNoEntries_test.zip");
+        try
         {
-            Assert.Equal(0, zipFile.Count);
-            zipFile.Close();
-        }
+            MakeZipFile(tempFile, "", 0, 1, "Aha");
 
-        File.Delete(tempFile);
+            using (var zipFile = new ZipFile(tempFile))
+            {
+                Assert.Equal(0, zipFile.Count);
+                zipFile.Close();
+            }
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
     }
 
     [Fact]
@@ -1068,75 +1098,81 @@ public class ZipFileHandling : ZipBase
     [Trait("Category", "CreatesTempFile")]
     public void UpdateCommentOnlyOnDisk()
     {
-        var tempFile = GetTempFilePath();
-        Assert.NotNull(tempFile);
+        var tempDir = GetTempFilePath();
+        Assert.NotNull(tempDir);
 
-        tempFile = Path.Combine(tempFile, "SharpZipTest.Zip");
+        var tempFile = Path.Combine(tempDir, "UpdateCommentOnlyOnDisk_test.zip");
         if (File.Exists(tempFile))
         {
             File.Delete(tempFile);
         }
 
-        using (var testFile = ZipFile.Create(tempFile))
+        try
         {
-            testFile.BeginUpdate();
-            testFile.Add(new StringMemoryDataSource("Aha"), "No1", CompressionMethod.Stored);
-            testFile.Add(new StringMemoryDataSource("And so it goes"), "No2", CompressionMethod.Stored);
-            testFile.Add(new StringMemoryDataSource("No3"), "No3", CompressionMethod.Stored);
-            testFile.CommitUpdate();
+            using (var testFile = ZipFile.Create(tempFile))
+            {
+                testFile.BeginUpdate();
+                testFile.Add(new StringMemoryDataSource("Aha"), "No1", CompressionMethod.Stored);
+                testFile.Add(new StringMemoryDataSource("And so it goes"), "No2", CompressionMethod.Stored);
+                testFile.Add(new StringMemoryDataSource("No3"), "No3", CompressionMethod.Stored);
+                testFile.CommitUpdate();
 
-            ZipTesting.AssertPassesTestArchive(testFile);
+                ZipTesting.AssertPassesTestArchive(testFile);
+            }
+
+            using (var testFile = new ZipFile(tempFile))
+            {
+                ZipTesting.AssertPassesTestArchive(testFile);
+                Assert.Equal("", testFile.ZipFileComment);
+
+                testFile.BeginUpdate(new DiskArchiveStorage(testFile, FileUpdateMode.Direct));
+                testFile.SetComment("Here is my comment");
+                testFile.CommitUpdate();
+
+                ZipTesting.AssertPassesTestArchive(testFile);
+            }
+
+            using (var testFile = new ZipFile(tempFile))
+            {
+                ZipTesting.AssertPassesTestArchive(testFile);
+                Assert.Equal("Here is my comment", testFile.ZipFileComment);
+            }
+            File.Delete(tempFile);
+
+            // Variant using indirect updating.
+            using (var testFile = ZipFile.Create(tempFile))
+            {
+                testFile.BeginUpdate();
+                testFile.Add(new StringMemoryDataSource("Aha"), "No1", CompressionMethod.Stored);
+                testFile.Add(new StringMemoryDataSource("And so it goes"), "No2", CompressionMethod.Stored);
+                testFile.Add(new StringMemoryDataSource("No3"), "No3", CompressionMethod.Stored);
+                testFile.CommitUpdate();
+
+                ZipTesting.AssertPassesTestArchive(testFile);
+            }
+
+            using (var testFile = new ZipFile(tempFile))
+            {
+                ZipTesting.AssertPassesTestArchive(testFile);
+                Assert.Equal("", testFile.ZipFileComment);
+
+                testFile.BeginUpdate();
+                testFile.SetComment("Here is my comment");
+                testFile.CommitUpdate();
+
+                ZipTesting.AssertPassesTestArchive(testFile);
+            }
+
+            using (var testFile = new ZipFile(tempFile))
+            {
+                ZipTesting.AssertPassesTestArchive(testFile);
+                Assert.Equal("Here is my comment", testFile.ZipFileComment);
+            }
         }
-
-        using (var testFile = new ZipFile(tempFile))
+        finally
         {
-            ZipTesting.AssertPassesTestArchive(testFile);
-            Assert.Equal("", testFile.ZipFileComment);
-
-            testFile.BeginUpdate(new DiskArchiveStorage(testFile, FileUpdateMode.Direct));
-            testFile.SetComment("Here is my comment");
-            testFile.CommitUpdate();
-
-            ZipTesting.AssertPassesTestArchive(testFile);
+            if (File.Exists(tempFile)) File.Delete(tempFile);
         }
-
-        using (var testFile = new ZipFile(tempFile))
-        {
-            ZipTesting.AssertPassesTestArchive(testFile);
-            Assert.Equal("Here is my comment", testFile.ZipFileComment);
-        }
-        File.Delete(tempFile);
-
-        // Variant using indirect updating.
-        using (var testFile = ZipFile.Create(tempFile))
-        {
-            testFile.BeginUpdate();
-            testFile.Add(new StringMemoryDataSource("Aha"), "No1", CompressionMethod.Stored);
-            testFile.Add(new StringMemoryDataSource("And so it goes"), "No2", CompressionMethod.Stored);
-            testFile.Add(new StringMemoryDataSource("No3"), "No3", CompressionMethod.Stored);
-            testFile.CommitUpdate();
-
-            ZipTesting.AssertPassesTestArchive(testFile);
-        }
-
-        using (var testFile = new ZipFile(tempFile))
-        {
-            ZipTesting.AssertPassesTestArchive(testFile);
-            Assert.Equal("", testFile.ZipFileComment);
-
-            testFile.BeginUpdate();
-            testFile.SetComment("Here is my comment");
-            testFile.CommitUpdate();
-
-            ZipTesting.AssertPassesTestArchive(testFile);
-        }
-
-        using (var testFile = new ZipFile(tempFile))
-        {
-            ZipTesting.AssertPassesTestArchive(testFile);
-            Assert.Equal("Here is my comment", testFile.ZipFileComment);
-        }
-        File.Delete(tempFile);
     }
 
     [Fact]
