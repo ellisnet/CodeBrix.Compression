@@ -2,10 +2,13 @@ using CodeBrix.Compression.Tests.TestSupport;
 using CodeBrix.Compression.Zip;
 using System;
 using System.IO;
-using System.Security;
 using System.Text;
 using System.Text.Json;
 using Xunit;
+
+#if ENABLE_LARGE_ZIP_FILE_TESTS
+using System.Security;
+#endif
 
 namespace CodeBrix.Compression.Tests.Zip;
 
@@ -484,6 +487,8 @@ public class GeneralHandling : ZipBase
         }
     }
 
+#if ENABLE_LARGE_ZIP_FILE_TESTS
+
     private void TestLargeZip(string tempFile, int targetFiles)
     {
         const int BlockSize = 4096;
@@ -517,6 +522,7 @@ public class GeneralHandling : ZipBase
         zFile.Close();
     }
 
+    [Fact]
     public void TestLargeZipFile()
     {
         var tempFile = @"g:\\tmp";
@@ -524,6 +530,7 @@ public class GeneralHandling : ZipBase
         TestLargeZip(tempFile, 8100);
     }
 
+    [Fact]
     public void MakeLargeZipFile()
     {
         string tempFile = null;
@@ -576,6 +583,8 @@ public class GeneralHandling : ZipBase
             Console.WriteLine("Starting at {0}", DateTime.Now);
         }
     }
+
+#endif
 
     /// <summary>
     /// Test for handling of serialized reference and value objects.

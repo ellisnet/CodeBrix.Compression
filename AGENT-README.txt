@@ -26,19 +26,18 @@ License: MIT License
 INSTALLATION
 ------------
 NuGet Package: CodeBrix.Compression.MitLicenseForever
-Latest Version: 1.0.49 (as of Feb 2026)
-Package Size: ~131 KB
 Dependencies: None
 
 Requirements: .NET 10.0 or higher
 
-To add to a .NET 10+ project:
+To add to a .NET 10+ project (always use the latest available version):
 
     dotnet add package CodeBrix.Compression.MitLicenseForever
 
-Or in a .csproj file:
+Or add a PackageReference to a .csproj file, substituting the latest published
+version number for {latest-version}:
 
-    <PackageReference Include="CodeBrix.Compression.MitLicenseForever" Version="1.0.49" />
+    <PackageReference Include="CodeBrix.Compression.MitLicenseForever" Version="{latest-version}" />
 
 IMPORTANT: The package name is "CodeBrix.Compression.MitLicenseForever" (not just
 "CodeBrix.Compression"). Always use this full package name when installing.

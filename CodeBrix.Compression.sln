@@ -17,6 +17,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeBrix.Compression", "src
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeBrix.Compression.Tests", "test\CodeBrix.Compression.Tests\CodeBrix.Compression.Tests.csproj", "{82211166-9C45-4603-8E3A-2CA2EFFCBC26}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{707004AF-8A95-40F2-A066-91DB3A9250DE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -34,6 +36,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{82211166-9C45-4603-8E3A-2CA2EFFCBC26} = {707004AF-8A95-40F2-A066-91DB3A9250DE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0A049193-65F8-49AF-82CB-75D42563DA16}

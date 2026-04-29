@@ -51,7 +51,7 @@ public class TarArchiveTests
         Assert.Throws<InvalidNameException>(() => ExtractTarOK(outputDir, fileName, allowTraverse: false));
     }
 
-    public void ExtractTarOK(string outputDir, string fileName, bool allowTraverse)
+    private void ExtractTarOK(string outputDir, string fileName, bool allowTraverse)
     {
         var fileContent = Encoding.UTF8.GetBytes("file content");
         using var tempDir = GetTempDir();

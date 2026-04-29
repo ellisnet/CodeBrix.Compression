@@ -3,6 +3,7 @@ using CodeBrix.Compression.Zip;
 using System;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -202,7 +203,7 @@ public class ZipEncryptionHandling
             await using var zis = zipFile.GetInputStream(entry);
             await using var inputStream = zipFile.GetInputStream(entry);
             using var sr = new StreamReader(zis, Encoding.UTF8);
-            var content = await sr.ReadToEndAsync();
+            var content = await sr.ReadToEndAsync(CancellationToken.None);
             Assert.Equal(DummyDataString, content);
         }
     }
@@ -478,17 +479,17 @@ public class ZipEncryptionHandling
         Assert.Throws<ZipException>(() => inputStream.ReadByte());
     }
 
-    public static void WriteEncryptedZipToStream(Stream stream, string password, int keySize, CompressionMethod compressionMethod = CompressionMethod.Deflated)
+    private static void WriteEncryptedZipToStream(Stream stream, string password, int keySize, CompressionMethod compressionMethod = CompressionMethod.Deflated)
     {
         using var zs = new ZipOutputStream(stream);
         zs.IsStreamOwner = false;
         zs.SetLevel(9); // 0-9, 9 being the highest level of compression
         zs.Password = password;  // optional. Null is the same as not setting. Required if using AES.
 
-        AddEncrypedEntryToStream(zs, $"test", keySize, compressionMethod);
+        AddEncryptedEntryToStream(zs, $"test", keySize, compressionMethod);
     }
 
-    public void WriteEncryptedZipToStream(Stream stream, int entryCount, string password, int keySize, CompressionMethod compressionMethod)
+    private void WriteEncryptedZipToStream(Stream stream, int entryCount, string password, int keySize, CompressionMethod compressionMethod)
     {
         using var zs = new ZipOutputStream(stream);
         zs.IsStreamOwner = false;
@@ -497,11 +498,11 @@ public class ZipEncryptionHandling
 
         for (var i = 0;  i < entryCount; i++)
         {
-            AddEncrypedEntryToStream(zs, $"test-{i}", keySize, compressionMethod);
+            AddEncryptedEntryToStream(zs, $"test-{i}", keySize, compressionMethod);
         }
     }
 
-    private static void AddEncrypedEntryToStream(ZipOutputStream zipOutputStream, string entryName, int keySize, CompressionMethod compressionMethod)
+    private static void AddEncryptedEntryToStream(ZipOutputStream zipOutputStream, string entryName, int keySize, CompressionMethod compressionMethod)
     {
         var zipEntry = new ZipEntry(entryName)
         {
@@ -522,7 +523,7 @@ public class ZipEncryptionHandling
         zipOutputStream.CloseEntry();
     }
 
-    public void CreateZipWithEncryptedEntries(string password, int keySize, CompressionMethod compressionMethod = CompressionMethod.Deflated)
+    private void CreateZipWithEncryptedEntries(string password, int keySize, CompressionMethod compressionMethod = CompressionMethod.Deflated)
     {
         using var ms = new MemoryStream();
         WriteEncryptedZipToStream(ms, password, keySize, compressionMethod);

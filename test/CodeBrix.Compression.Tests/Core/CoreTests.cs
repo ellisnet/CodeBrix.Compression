@@ -12,7 +12,7 @@ public class CoreTestSuite
     public void FilterQuoting()
     {
         var filters = NameFilter.SplitQuoted("");
-        Assert.Equal(0, filters.Length);
+        Assert.Empty(filters);
 
         filters = NameFilter.SplitQuoted(";;;");
         Assert.Equal(4, filters.Length);

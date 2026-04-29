@@ -1,8 +1,8 @@
+using CodeBrix.Compression.Tests.TestSupport;
+using CodeBrix.Compression.Zip;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using CodeBrix.Compression.Zip;
-using CodeBrix.Compression.Tests.TestSupport;
 using Xunit;
 
 namespace CodeBrix.Compression.Tests.Zip;
@@ -18,10 +18,10 @@ public class ZipStreamAsyncTests
 
         await using (var outStream = new ZipOutputStream(ms){IsStreamOwner = false})
         {
-            await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"));
+            await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"), CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, 12);
 
-            await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"));
+            await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"), CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, 12);
         }
 
@@ -35,10 +35,10 @@ public class ZipStreamAsyncTests
 
         await using(var outStream = new ZipOutputStream(ms) { IsStreamOwner = false })
         {
-            await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"));
+            await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"), CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, 12);
 
-            await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"));
+            await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"), CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, 12);
 
             await outStream.FinishAsync(CancellationToken.None);
@@ -56,10 +56,10 @@ public class ZipStreamAsyncTests
 
         await using (var outStream = new ZipOutputStream(ms){IsStreamOwner = false, Password = password})
         {
-            await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"){AESKeySize = 256});
+            await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"){AESKeySize = 256}, CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, 12);
 
-            await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"){AESKeySize = 256});
+            await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"){AESKeySize = 256}, CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, 12);
 
             await outStream.FinishAsync(CancellationToken.None);
@@ -76,10 +76,10 @@ public class ZipStreamAsyncTests
 
         await using (var outStream = new ZipOutputStream(ms){IsStreamOwner = false, Password = password})
         {
-            await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"){AESKeySize = 0});
+            await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"){AESKeySize = 0}, CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, 12);
 
-            await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"){AESKeySize = 0});
+            await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"){AESKeySize = 0}, CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, 12);
 
             await outStream.FinishAsync(CancellationToken.None);
@@ -95,10 +95,10 @@ public class ZipStreamAsyncTests
 
         await using(var outStream = new ZipOutputStream(ms) { IsStreamOwner = false })
         {
-            await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"));
+            await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"), CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, 12);
 
-            await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"));
+            await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"), CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, 12);
 
             await outStream.FinishAsync(CancellationToken.None);
@@ -115,10 +115,10 @@ public class ZipStreamAsyncTests
         await using var ms = new MemoryStreamWithoutSync();
         await using(var outStream = new ZipOutputStream(ms) { IsStreamOwner = false })
         {
-            await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"));
+            await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"), CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, fileSize);
 
-            await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"));
+            await outStream.PutNextEntryAsync(new ZipEntry("SecondFile"), CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, fileSize);
 
             await outStream.FinishAsync(CancellationToken.None);

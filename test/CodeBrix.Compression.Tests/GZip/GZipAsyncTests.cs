@@ -1,9 +1,10 @@
+using CodeBrix.Compression.GZip;
+using CodeBrix.Compression.Tests.TestSupport;
 using System;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using CodeBrix.Compression.GZip;
-using CodeBrix.Compression.Tests.TestSupport;
 using Xunit;
 
 namespace CodeBrix.Compression.Tests.GZip;
@@ -25,7 +26,7 @@ public class GZipAsyncTests
         await using var msGzip = new MemoryStream();
         await using (var gzos = new GZipOutputStream(msGzip){IsStreamOwner = false})
         {
-            await gzos.WriteAsync(inputBuffer, 0, inputBuffer.Length);
+            await gzos.WriteAsync(inputBuffer, 0, inputBuffer.Length, CancellationToken.None);
         }
 
         msGzip.Seek(0, SeekOrigin.Begin);
@@ -36,7 +37,7 @@ public class GZipAsyncTests
             int readOut;
             while ((readOut = gzis.Read(outputBuffer, 0, outputBuffer.Length)) > 0)
             {
-                await msRaw.WriteAsync(outputBuffer, 0, readOut);
+                await msRaw.WriteAsync(outputBuffer, 0, readOut, CancellationToken.None);
             }
 
             var resultBuffer = msRaw.ToArray();
@@ -88,7 +89,7 @@ public class GZipAsyncTests
         await using (var inStream = new GZipInputStream(ms))
         using (var reader = new StreamReader(inStream))
         {
-            var content = await reader.ReadToEndAsync();
+            var content = await reader.ReadToEndAsync(CancellationToken.None);
             Assert.Empty(content);
         }
     }
@@ -103,7 +104,7 @@ public class GZipAsyncTests
         await using (var outStream = new GZipOutputStream(msAsync) { IsStreamOwner = false })
         {
             outStream.ModifiedTime = modTime;
-            await outStream.WriteAsync(content);
+            await outStream.WriteAsync(content, CancellationToken.None);
         }
 
         using var msSync = new MemoryStream();
@@ -124,7 +125,7 @@ public class GZipAsyncTests
         using (var reader = new StreamReader(inStream))
         {
             // NOTE: preserving original semantics - compare decompressed text to original bytes encoded as ASCII
-            Assert.Equal(Encoding.ASCII.GetString(content), await reader.ReadToEndAsync());
+            Assert.Equal(Encoding.ASCII.GetString(content), await reader.ReadToEndAsync(CancellationToken.None));
         }
     }
 }

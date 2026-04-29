@@ -68,7 +68,7 @@ public class GZipTestSuite
             Assert.Equal(0, ms.Length);
         }
 
-        Assert.NotEqual(0, ms.ToArray().Length);
+        Assert.NotEmpty(ms.ToArray());
     }
 
 

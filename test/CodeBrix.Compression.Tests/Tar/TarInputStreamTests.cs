@@ -59,7 +59,7 @@ public class TarInputStreamTests
             var e = TarEntry.CreateTarEntry("some entry");
             e.Size = entryBytes.Length;
             await tos.PutNextEntryAsync(e, CancellationToken.None);
-            await tos.WriteAsync(entryBytes, 0, entryBytes.Length);
+            await tos.WriteAsync(entryBytes, 0, entryBytes.Length, CancellationToken.None);
             await tos.CloseEntryAsync(CancellationToken.None);
         }
 
@@ -69,19 +69,19 @@ public class TarInputStreamTests
         var entry = await tis.GetNextEntryAsync(CancellationToken.None);
         Assert.Equal("some entry", entry.Name);
         var buffer = new byte[1000]; // smaller than 2 blocks
-        var read0 = await tis.ReadAsync(buffer, 0, buffer.Length);
+        var read0 = await tis.ReadAsync(buffer, 0, buffer.Length, CancellationToken.None);
         Assert.Equal(1000, read0);
         Assert.Equal(entryBytes.AsSpan(0, 1000).ToArray(), buffer);
 
-        var read1 = await tis.ReadAsync(buffer, 0, 5);
+        var read1 = await tis.ReadAsync(buffer, 0, 5, CancellationToken.None);
         Assert.Equal(5, read1);
         Assert.Equal(entryBytes.AsSpan(1000, 5).ToArray(), buffer.AsSpan().Slice(0, 5).ToArray());
 
-        var read2 = await tis.ReadAsync(buffer, 0, 20);
+        var read2 = await tis.ReadAsync(buffer, 0, 20, CancellationToken.None);
         Assert.Equal(20, read2);
         Assert.Equal(entryBytes.AsSpan(1005, 20).ToArray(), buffer.AsSpan().Slice(0, 20).ToArray());
 
-        var read3 = await tis.ReadAsync(buffer, 0, 975);
+        var read3 = await tis.ReadAsync(buffer, 0, 975, CancellationToken.None);
         Assert.Equal(975, read3);
         Assert.Equal(entryBytes.AsSpan(1025, 975).ToArray(), buffer.AsSpan().Slice(0, 975).ToArray());
     }
