@@ -364,8 +364,14 @@ public class TarInputStream : Stream
     /// </summary>
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        // Guard against a double-dispose, mirroring TarOutputStream. Note the
+        // intent differs: TarOutputStream's guard is load-bearing (its Dispose
+        // writes the end-of-archive trailer, which must not run twice); here it
+        // is defensive parity -- TarBuffer.Close is already idempotent, so the
+        // real protection against a double pool-return lives there.
+        if (disposing && !isClosed)
         {
+            isClosed = true;
             tarBuffer.Close();
         }
     }
@@ -376,6 +382,12 @@ public class TarInputStream : Stream
     /// </summary>
     public override async ValueTask DisposeAsync()
     {
+        if (isClosed)
+        {
+            return;
+        }
+
+        isClosed = true;
         await tarBuffer.CloseAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
@@ -899,6 +911,12 @@ public class TarInputStream : Stream
     private readonly Stream inputStream;
 
     private readonly Encoding encoding;
+
+    /// <summary>
+    /// True once this stream has been disposed/closed, so a second Dispose
+    /// (or DisposeAsync) is a no-op.
+    /// </summary>
+    private bool isClosed;
 
     #endregion Instance Fields
 }

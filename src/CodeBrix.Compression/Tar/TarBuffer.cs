@@ -667,7 +667,17 @@ public class TarBuffer
             inputStream = null;
         }
 
-        ArrayPool<byte>.Shared.Return(recordBuffer);
+        // Null the field before returning the rented array so a second Close()
+        // (e.g. a double-dispose of the owning stream) cannot return the same
+        // array to the pool twice. A double-return lets two later Rent() callers
+        // receive the same buffer and corrupt each other's data.
+        var bufferToReturn = recordBuffer;
+        recordBuffer = null;
+
+        if (bufferToReturn != null)
+        {
+            ArrayPool<byte>.Shared.Return(bufferToReturn);
+        }
     }
 
     #region Instance Fields
