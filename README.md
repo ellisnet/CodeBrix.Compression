@@ -1,8 +1,8 @@
 # CodeBrix.Compression
 
-Create, read and extract Zip, GZip, Tar and BZip2 archives using .NET.
+Create, read and extract Zip, GZip, Tar and BZip2 archives using .NET; plus decompress PKWARE DCL "imploded" data.
 
-CodeBrix.Compression is a .NET library for working with compressed archives in multiple formats including Zip, GZip, Tar and BZip2. It supports encryption (AES-128 and AES-256), Zip64, and streaming operations for both creation and extraction of archives.
+CodeBrix.Compression is a .NET library for working with compressed archives in multiple formats including Zip, GZip, Tar and BZip2 - and can decompress data in the PKWARE Data Compression Library (DCL) "imploded" format used by many MS-DOS-era installers. It supports encryption (AES-128 and AES-256), Zip64, and streaming operations for both creation and extraction of archives.
 
 CodeBrix.Compression has no dependencies other than .NET, and is provided as a .NET 10 library and associated `CodeBrix.Compression.MitLicenseForever` NuGet package.
 
@@ -16,6 +16,7 @@ CodeBrix.Compression is a fork of the code of the popular SharpZipLib library ve
 * GZip compression and decompression
 * Tar archives (create, read, extract)
 * BZip2 compression and decompression
+* DCL (PKWARE Data Compression Library "implode" format) decompression
 * AES-128 and AES-256 encryption for Zip archives
 * Zip64 extensions for large files
 * Streaming (non-seekable) input and output
@@ -171,10 +172,25 @@ BZip2.Compress(File.OpenRead("data.txt"), File.Create("data.txt.bz2"), isStreamO
 BZip2.Decompress(File.OpenRead("data.txt.bz2"), File.Create("data.txt"), isStreamOwner: true);
 ```
 
+### DCL (PKWARE Data Compression Library) Decompression
+
+```csharp
+using CodeBrix.Compression.Dcl;
+
+// Decompress a DCL "imploded" stream (e.g. data produced by the implode()
+// function of the PKWARE Data Compression Library, common in MS-DOS-era
+// installer archives). Note: this is NOT the Zip "Imploded" (method 6) format.
+using var inStream = new DclInputStream(File.OpenRead("data.imploded"));
+using var outStream = File.Create("data.bin");
+inStream.CopyTo(outStream);
+```
+
 Note that significant additional sample code is available in the `CodeBrix.Compression.Tests` project.
 
 ## License
 
 The project is licensed under the MIT License. see: https://en.wikipedia.org/wiki/MIT_License
+
+The DCL ("implode" format) decompression code is a C# port of Mark Adler's "blast" reference decoder (zlib contrib), used under the zlib license - see THIRD-PARTY-NOTICES.txt for the full notice.
 
 All code from SharpZipLib version 1.4.2 was licensed under the MIT License. This project (CodeBrix.Compression) complies with all provisions of the open source license of SharpZipLib version 1.4.2 (code) - and will make all modified, adapted and derived code incorporated into the CodeBrix.Compression library freely available as open source, under the same license as the SharpZipLib code license.

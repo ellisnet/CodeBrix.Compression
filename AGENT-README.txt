@@ -7,6 +7,8 @@ OVERVIEW
 --------
 CodeBrix.Compression is a .NET library for creating, reading, updating, and
 extracting compressed archives in multiple formats: Zip, GZip, Tar, and BZip2.
+It can also decompress data in the PKWARE Data Compression Library (DCL)
+"imploded" stream format used by many MS-DOS-era installers.
 
 It supports encryption (AES-128, AES-256, ZipCrypto), Zip64 extensions for large
 files, streaming operations, in-memory archive operations, and checksums.
@@ -51,6 +53,7 @@ KEY NAMESPACES
     using CodeBrix.Compression.GZip;   // GZip compression/decompression
     using CodeBrix.Compression.Tar;    // Tar archive operations
     using CodeBrix.Compression.BZip2;  // BZip2 compression/decompression
+    using CodeBrix.Compression.Dcl;    // PKWARE DCL "implode" decompression
 
 ================================================================================
 
@@ -62,6 +65,7 @@ Zip      | Yes    | Yes  | Yes     | Yes    | Yes (AES-128, AES-256, ZipCrypto)
 GZip     | Yes    | Yes  | Yes     | No     | No
 Tar      | Yes    | Yes  | Yes     | No     | No
 BZip2    | Yes    | Yes  | Yes     | No     | No
+DCL      | No     | Yes  | Yes     | No     | No
 
 Additional features:
   - Zip64 extensions for large files (>4GB)
@@ -580,6 +584,63 @@ Using BZip2OutputStream / BZip2InputStream for more control:
 
 ================================================================================
 
+DCL DECOMPRESSION (PKWARE DATA COMPRESSION LIBRARY "IMPLODE" FORMAT)
+=====================================================================
+
+DCL is the stream format produced by the implode() function of the PKWARE
+Data Compression Library (1990-92). It was licensed to many MS-DOS-era
+products and is common in installer archives and self-extracting shareware
+distributions of that period (it is also the compression used inside MPQ
+game archives).
+
+IMPORTANT: DCL "implode" is NOT the same as the Zip archive "Imploded"
+compression method (method 6), and it is not produced by PKZIP itself.
+A DCL stream is a raw compressed stream with no container/archive structure.
+
+A DCL stream starts with two header bytes:
+  byte 0: 0 = literals are uncoded, 1 = literals are Huffman coded
+  byte 1: 4, 5, or 6 = log2(dictionary size) - 6 (1024, 2048, or 4096 bytes)
+
+Decompression is supported; compression is NOT.
+
+Using DclInputStream (streaming):
+
+    using CodeBrix.Compression.Dcl;
+
+    using var inStream = new DclInputStream(File.OpenRead("data.imploded"));
+    using var outStream = File.Create("data.bin");
+    inStream.CopyTo(outStream);
+
+Using the static helper:
+
+    using CodeBrix.Compression.Dcl;
+
+    Dcl.Decompress(
+        File.OpenRead("data.imploded"),
+        File.Create("data.bin"),
+        isStreamOwner: true);
+
+NOTE: when calling the static Dcl class from code whose namespace is itself
+under a "...Dcl" namespace segment, the bare name "Dcl" may resolve to the
+namespace instead of the class; use an alias in that case:
+
+    using DclHelper = CodeBrix.Compression.Dcl.Dcl;
+
+Error handling: malformed or truncated input throws DclException (derived
+from CompressionExceptionBase). There is no checksum in the DCL format
+itself, so callers wanting integrity verification should compare the output
+against an externally known length/checksum.
+
+DclInputStream is read-only, forward-only: CanSeek is false, and Length,
+Seek, SetLength, and Write all throw NotSupportedException. IsStreamOwner
+(default true) controls whether disposing the DclInputStream also disposes
+the underlying stream.
+
+The decoder is a C# port of Mark Adler's "blast" reference decoder (zlib
+contrib/blast, version 1.3, zlib license) - see THIRD-PARTY-NOTICES.txt.
+
+================================================================================
+
 CHECKSUMS
 =========
 
@@ -842,6 +903,9 @@ WHAT THIS LIBRARY DOES NOT DO
 
 Do NOT attempt to use CodeBrix.Compression for the following - it will not work:
 
+  - Extracting Zip entries compressed with the legacy Zip "Implode" (method 6)
+    or "Shrink" (method 1) methods (note: the separate PKWARE DCL "implode"
+    raw stream format IS supported - see DCL DECOMPRESSION above)
   - RAR archive creation or extraction
   - 7z (7-Zip) archive creation or extraction
   - XZ compression
@@ -855,7 +919,8 @@ Do NOT attempt to use CodeBrix.Compression for the following - it will not work:
   - Self-extracting archive creation
 
 This library IS for: creating, reading, extracting, and updating archives in
-Zip, GZip, Tar, and BZip2 formats, with optional AES encryption for Zip.
+Zip, GZip, Tar, and BZip2 formats, with optional AES encryption for Zip; and
+for decompressing raw PKWARE DCL "imploded" streams.
 
 ================================================================================
 
@@ -970,6 +1035,9 @@ Feature-to-test-file mapping:
   LZW compression:
     -> test/CodeBrix.Compression.Tests/Lzw/
 
+  DCL (PKWARE DCL "implode") decompression:
+    -> test/CodeBrix.Compression.Tests/Dcl/
+
   Serialization:
     -> test/CodeBrix.Compression.Tests/Serialization/
 
@@ -1046,6 +1114,11 @@ BZip2.Compress(inStream, outStream, isStreamOwner, level)
 BZip2.Decompress(inStream, outStream, isStreamOwner)
 BZip2OutputStream(stream)
 BZip2InputStream(stream)
+
+--- DCL ---
+Dcl.Decompress(inStream, outStream, isStreamOwner)
+DclInputStream(stream)            DCL "implode" decompression stream
+  .IsStreamOwner                 Control underlying stream disposal
 
 --- CHECKSUMS ---
 Crc32                             CRC-32 checksum
