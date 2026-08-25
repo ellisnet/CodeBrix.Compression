@@ -1,10 +1,10 @@
 ================================================================================
 AGENT-README: CodeBrix.Compression
-A Comprehensive Guide for AI Coding Agents
+A Guide for AI Coding Agents — CONSUMING the CodeBrix.Compression.MitLicenseForever NuGet package
 ================================================================================
 
 OVERVIEW
---------
+========
 CodeBrix.Compression is a .NET library for creating, reading, updating, and
 extracting compressed archives in multiple formats: Zip, GZip, Tar, and BZip2.
 It can also decompress data in the PKWARE Data Compression Library (DCL)
@@ -13,24 +13,28 @@ It can also decompress data in the PKWARE Data Compression Library (DCL)
 It supports encryption (AES-128, AES-256, ZipCrypto), Zip64 extensions for large
 files, streaming operations, in-memory archive operations, and checksums.
 
+Target framework: .NET 10 or later.
+
 CodeBrix.Compression has ZERO external dependencies beyond .NET itself.
 
-It is a fork of the popular SharpZipLib library version 1.4.2. If you are
+PROVENANCE: CodeBrix.Compression is a fork of SharpZipLib 1.4.2, plus a DCL
+"implode" decoder ported from Mark Adler's "blast" reference decoder. If you are
 familiar with SharpZipLib, the API surface is very similar, but ALL namespaces
-use "CodeBrix.Compression" instead of "ICSharpCode.SharpZipLib".
-Do NOT mix the two libraries.
+use "CodeBrix.Compression" instead of "ICSharpCode.SharpZipLib". Do NOT write
+the upstream namespaces, and do NOT reference both libraries from the same
+project.
 
-Source Repository: https://github.com/ellisnet/CodeBrix.Compression
-License: MIT License
+Source repository: https://github.com/ellisnet/CodeBrix.Compression
 
 ================================================================================
 
 INSTALLATION
-------------
-NuGet Package: CodeBrix.Compression.MitLicenseForever
-Dependencies: None
-
-Requirements: .NET 10.0 or higher
+============
+NuGet PackageId: CodeBrix.Compression.MitLicenseForever
+NuGet dependencies: none
+License: MIT (SPDX: MIT)
+Requirements: .NET 10 or later. Fully managed - no native libraries, no
+platform-specific code, no OS restrictions.
 
 To add to a .NET 10+ project (always use the latest available version):
 
@@ -42,23 +46,39 @@ version number for {latest-version}:
     <PackageReference Include="CodeBrix.Compression.MitLicenseForever" Version="{latest-version}" />
 
 IMPORTANT: The package name is "CodeBrix.Compression.MitLicenseForever" (not just
-"CodeBrix.Compression"). Always use this full package name when installing.
+"CodeBrix.Compression"). Always use this full package name when installing. The
+assembly and the namespaces are named "CodeBrix.Compression" - the
+".MitLicenseForever" suffix belongs to the package id only.
 
 ================================================================================
 
-KEY NAMESPACES
---------------
+KEY NAMESPACES / USINGS
+=======================
 
-    using CodeBrix.Compression.Zip;    // Zip archive operations
-    using CodeBrix.Compression.GZip;   // GZip compression/decompression
-    using CodeBrix.Compression.Tar;    // Tar archive operations
-    using CodeBrix.Compression.BZip2;  // BZip2 compression/decompression
-    using CodeBrix.Compression.Dcl;    // PKWARE DCL "implode" decompression
+    using CodeBrix.Compression.Zip;         // Zip archive operations
+    using CodeBrix.Compression.GZip;        // GZip compression/decompression
+    using CodeBrix.Compression.Tar;         // Tar archive operations
+    using CodeBrix.Compression.BZip2;       // BZip2 compression/decompression
+    using CodeBrix.Compression.Dcl;         // PKWARE DCL "implode" decompression
+    using CodeBrix.Compression.Checksum;    // Crc32, Adler32
+    using CodeBrix.Compression.Core;        // Name transforms, filters, scanning
+    using CodeBrix.Compression.Encryption;  // Zip AES transform/stream internals
+    using CodeBrix.Compression.Lzw;         // LZW (.Z) decompression stream
+
+The root namespace CodeBrix.Compression itself holds CompressionExceptionBase
+(the base class most library exceptions derive from) and the static
+CompressionOptions class of global settings; CodeBrix.Compression.Zip.Compression
+and CodeBrix.Compression.Zip.Compression.Streams hold the raw Deflate/Inflate
+layer that the Zip and GZip streams are built on.
 
 ================================================================================
+
+CORE API REFERENCE
+==================
+The API reference is organised by feature area in the sections that follow.
 
 SUPPORTED FORMATS AND CAPABILITIES
-------------------------------------
+==================================
 Format   | Create | Read | Extract | Update | Encrypt
 ---------|--------|------|---------|--------|--------
 Zip      | Yes    | Yes  | Yes     | Yes    | Yes (AES-128, AES-256, ZipCrypto)
@@ -77,10 +97,14 @@ Additional features:
   - Directory structure preservation
   - Path traversal attack prevention
 
+"Update" for Zip means adding, replacing and deleting entries in an EXISTING
+archive without rewriting it by hand - see UPDATING AN EXISTING ZIP ARCHIVE
+below.
+
 ================================================================================
 
 ZIP ARCHIVES
-=============
+============
 
 --- CREATING A ZIP ARCHIVE ---
 
@@ -218,6 +242,90 @@ ZipFile provides random access to archive entries (requires seekable stream):
         Console.WriteLine(content);
     }
 
+ZipFile also exposes an integer indexer (zipFile[0]) and Count, and can verify
+an archive:
+
+    bool ok = zipFile.TestArchive(testData: true);
+
+    // Or with a strategy and a per-entry result callback:
+    bool ok2 = zipFile.TestArchive(
+        testData: true,
+        strategy: TestStrategy.FindAllErrors,
+        resultHandler: (status, message) => Console.WriteLine(message));
+
+TestStrategy values are FindFirstError and FindAllErrors. The result handler is
+the ZipTestResultHandler delegate: void (TestStatus status, string message).
+
+--- UPDATING AN EXISTING ZIP ARCHIVE ---
+
+ZipFile is the only type in this package that can UPDATE an existing archive:
+add, replace and delete entries in place. All update calls must be bracketed by
+BeginUpdate() and CommitUpdate() (or AbortUpdate() to throw the batch away):
+
+    using CodeBrix.Compression.Zip;
+
+    using var zipFile = new ZipFile("archive.zip");
+
+    zipFile.BeginUpdate();
+    zipFile.Add("newfile.txt");                 // add from the file system
+    zipFile.Add("localname.txt", "in/zip.txt"); // add under a different entry name
+    zipFile.AddDirectory("subfolder");          // add a directory entry
+    zipFile.Delete("obsolete.txt");             // delete by entry name
+    zipFile.CommitUpdate();
+
+Creating a brand-new archive through the same API:
+
+    using var zipFile = ZipFile.Create("new.zip");   // also: ZipFile.Create(Stream)
+    zipFile.BeginUpdate();
+    zipFile.Add("data.bin");
+    zipFile.CommitUpdate();
+
+The update methods on ZipFile:
+
+    void BeginUpdate()
+    void BeginUpdate(IArchiveStorage archiveStorage)
+    void BeginUpdate(IArchiveStorage archiveStorage, IDynamicDataSource dataSource)
+    void CommitUpdate()
+    void AbortUpdate()
+    void Add(string fileName)
+    void Add(string fileName, string entryName)
+    void Add(string fileName, CompressionMethod compressionMethod)
+    void Add(string fileName, CompressionMethod compressionMethod, bool useUnicodeText)
+    void Add(ZipEntry entry)
+    void Add(IStaticDataSource dataSource, string entryName)
+    void Add(IStaticDataSource dataSource, string entryName, CompressionMethod compressionMethod)
+    void Add(IStaticDataSource dataSource, string entryName, CompressionMethod compressionMethod, bool useUnicodeText)
+    void Add(IStaticDataSource dataSource, ZipEntry entry)
+    void AddDirectory(string directoryName)
+    bool Delete(string fileName)      // returns false when no such entry
+    void Delete(ZipEntry entry)
+
+Adding content that is not a file on disk: implement IStaticDataSource, whose
+single member is "Stream GetSource()", and hand it to one of the Add overloads
+above. Ideally GetSource() opens a NEW stream each time it is called, to avoid
+locking problems.
+
+Where the update is staged is controlled by IArchiveStorage:
+
+    DiskArchiveStorage(ZipFile file)                          // Safe mode
+    DiskArchiveStorage(ZipFile file, FileUpdateMode updateMode)
+    MemoryArchiveStorage()                                    // Safe mode
+    MemoryArchiveStorage(FileUpdateMode updateMode)
+
+FileUpdateMode values:
+  - FileUpdateMode.Safe    Perform all updates on temporary files, so the
+                           original archive survives a failure (the default).
+  - FileUpdateMode.Direct  Update the archive in place; faster, but a failure
+                           can leave the archive damaged.
+
+ZipFile.UpdateMode reports the FileUpdateMode of the storage in use. The
+no-argument BeginUpdate() uses disk storage in Safe mode for a file-backed
+ZipFile; pass a MemoryArchiveStorage explicitly when the archive lives in a
+MemoryStream.
+
+Zip64 behavior during an update is controlled by ZipFile.UseZip64, whose values
+are UseZip64.Off, UseZip64.On and UseZip64.Dynamic.
+
 --- FASTZIP (HIGH-LEVEL CONVENIENCE API) ---
 
 FastZip provides simple one-call methods for common zip operations:
@@ -261,9 +369,15 @@ FastZip options:
     };
 
 Available ZipEncryptionMethod values:
-  - ZipEncryptionMethod.ZipCrypto   (legacy, less secure)
+  - ZipEncryptionMethod.None        (no encryption; this is the default)
+  - ZipEncryptionMethod.ZipCrypto   (legacy and weak; it is marked [Obsolete], so
+                                     referencing it produces a compiler warning)
   - ZipEncryptionMethod.AES128      (AES 128-bit)
   - ZipEncryptionMethod.AES256      (AES 256-bit, recommended)
+
+The fileFilter and directoryFilter arguments are regular-expression filters, and
+the same filter syntax is available directly through the name/path filter types
+in CodeBrix.Compression.Core.
 
 --- ZIP ENTRY PROPERTIES ---
 
@@ -321,7 +435,7 @@ Create a zip archive entirely in memory:
 ================================================================================
 
 GZIP COMPRESSION
-=================
+================
 
 Simple compress/decompress with static methods:
 
@@ -338,6 +452,14 @@ Simple compress/decompress with static methods:
         File.OpenRead("data.txt.gz"),
         File.Create("data.txt"),
         isStreamOwner: true);
+
+GZip.Compress also accepts two OPTIONAL arguments after isStreamOwner - a copy
+buffer size and a Deflate compression level:
+
+    GZip.Compress(input, output, isStreamOwner: true, bufferSize: 512, level: 6);
+
+The defaults are bufferSize 512 and level 6; pass level 9 for maximum
+compression or 1 for the fastest. GZip.Decompress has no such parameters.
 
 Using GZipOutputStream for more control:
 
@@ -364,19 +486,14 @@ GZip stream ownership:
     var gzipStream = new GZipOutputStream(underlyingStream);
     gzipStream.IsStreamOwner = false; // Don't close underlying stream
 
-GZip with delayed header writing (useful for HTTP/IIS scenarios):
-
-    // Headers can be delayed for compatibility with certain streaming scenarios
-    // The library handles this transparently
-
-IMPORTANT: isStreamOwner parameter controls whether the input/output streams
+IMPORTANT: the isStreamOwner parameter controls whether the input/output streams
 are automatically closed when the GZip operation completes. Set to true when
 you want automatic cleanup, false when you need to continue using the streams.
 
 ================================================================================
 
 TAR ARCHIVES
-=============
+============
 
 --- CREATING A TAR ARCHIVE ---
 
@@ -547,7 +664,7 @@ The block factor controls the record size (default is typically 20):
 ================================================================================
 
 BZIP2 COMPRESSION
-==================
+=================
 
 Simple compress/decompress with static methods:
 
@@ -565,6 +682,9 @@ Simple compress/decompress with static methods:
         File.OpenRead("data.txt.bz2"),
         File.Create("data.txt"),
         isStreamOwner: true);
+
+Note that the level argument of BZip2.Compress is REQUIRED (unlike GZip.Compress,
+where it is optional).
 
 Using BZip2OutputStream / BZip2InputStream for more control:
 
@@ -585,7 +705,7 @@ Using BZip2OutputStream / BZip2InputStream for more control:
 ================================================================================
 
 DCL DECOMPRESSION (PKWARE DATA COMPRESSION LIBRARY "IMPLODE" FORMAT)
-=====================================================================
+====================================================================
 
 DCL is the stream format produced by the implode() function of the PKWARE
 Data Compression Library (1990-92). It was licensed to many MS-DOS-era
@@ -637,7 +757,8 @@ Seek, SetLength, and Write all throw NotSupportedException. IsStreamOwner
 the underlying stream.
 
 The decoder is a C# port of Mark Adler's "blast" reference decoder (zlib
-contrib/blast, version 1.3, zlib license) - see THIRD-PARTY-NOTICES.txt.
+contrib/blast, version 1.3, zlib license) - see THIRD-PARTY-NOTICES.txt in
+the package.
 
 ================================================================================
 
@@ -682,7 +803,7 @@ Supported encryption methods for Zip archives:
    - Less secure than AES, use only for compatibility
    - Used when Password is set but AESKeySize is not specified
 
-Key classes:
+Key classes (namespace CodeBrix.Compression.Encryption):
   - ZipAESTransform: Handles AES encryption/decryption transforms
     - Valid block sizes: 16 (AES-128) and 32 (AES-256)
     - PwdVerifier property returns a 2-byte verification array
@@ -690,6 +811,10 @@ Key classes:
 
 IMPORTANT: ZipAESStream only supports CryptoStreamMode.Read.
 Attempting to construct it in Write mode will throw an exception.
+
+Most consuming code never touches these two types directly: set Password on the
+ZipOutputStream/ZipInputStream/ZipFile (or on FastZip, together with
+EntryEncryptionMethod) and the library selects the transform for you.
 
 ================================================================================
 
@@ -824,10 +949,62 @@ Example 6: Read Zip Contents Without Extracting
             $"compressed: {entry.CompressedSize} bytes)");
     }
 
+Example 7: Replace One Entry Inside an Existing Zip
+-----------------------------------------------------
+    using CodeBrix.Compression.Zip;
+
+    using var zipFile = new ZipFile("archive.zip");
+
+    zipFile.BeginUpdate();
+    zipFile.Delete("config.json");            // no-op returning false if absent
+    zipFile.Add("new-config.json", "config.json");
+    zipFile.CommitUpdate();
+
+    if (!zipFile.TestArchive(testData: true))
+    {
+        throw new InvalidOperationException("Updated archive failed verification.");
+    }
+
 ================================================================================
 
-PERFORMANCE TIPS FOR CODING AGENTS
-====================================
+MINIMUM VIABLE PROJECT
+======================
+
+To scaffold a new .NET 10 console project that uses CodeBrix.Compression:
+
+    dotnet new console -n MyCompressionApp --framework net10.0
+    cd MyCompressionApp
+    dotnet add package CodeBrix.Compression.MitLicenseForever
+
+Then in Program.cs:
+
+    using CodeBrix.Compression.Zip;
+
+    // Create a simple zip archive
+    using var fileStream = File.Create("output.zip");
+    using var zipStream = new ZipOutputStream(fileStream);
+    zipStream.SetLevel(9);
+
+    var entry = new ZipEntry("hello.txt") { DateTime = DateTime.Now };
+    zipStream.PutNextEntry(entry);
+
+    var data = System.Text.Encoding.UTF8.GetBytes("Hello, World!");
+    zipStream.Write(data, 0, data.Length);
+
+    zipStream.CloseEntry();
+    zipStream.Finish();
+
+    Console.WriteLine("Created output.zip!");
+
+Build and run:
+
+    dotnet build
+    dotnet run
+
+================================================================================
+
+PERFORMANCE TIPS
+================
 
 1. USE FASTZIP FOR SIMPLE OPERATIONS: When you just need to zip/unzip a
    directory, FastZip is simpler and handles all the details for you.
@@ -865,23 +1042,30 @@ PERFORMANCE TIPS FOR CODING AGENTS
     from a zip without processing all entries sequentially, use ZipFile
     instead of ZipInputStream. ZipFile provides random access via its indexer.
 
+11. BATCH ZIP UPDATES: Do all adds and deletes between ONE BeginUpdate() and
+    ONE CommitUpdate(). Committing after every entry rewrites the archive each
+    time. FileUpdateMode.Direct avoids the temporary-file copy but risks the
+    archive on failure - keep the default Safe mode unless you have measured a
+    problem.
+
 ================================================================================
 
 COMMON PITFALLS TO AVOID
-=========================
+========================
 
 1. DO NOT confuse the NuGet package name with the namespace.
    - Package: CodeBrix.Compression.MitLicenseForever
    - Namespaces: CodeBrix.Compression.Zip, CodeBrix.Compression.GZip, etc.
 
-2. DO NOT use ICSharpCode.SharpZipLib namespaces. Even though this is a fork,
-   all namespaces are CodeBrix.Compression.*.
+2. DO NOT use the upstream SharpZipLib namespaces (ICSharpCode.*). Even though
+   this is a fork, all namespaces are CodeBrix.Compression.*, and the two
+   libraries must not be mixed in one project.
 
 3. DO NOT forget to call CloseEntry() after writing each zip/tar entry.
 
 4. DO NOT forget to call Finish() on ZipOutputStream before closing.
 
-5. DO NOT target .NET versions below 10.0. This library requires .NET 10+.
+5. DO NOT target .NET versions below 10. This library requires .NET 10 or later.
 
 6. DO NOT forget to set entry.Size on TarEntry before writing to TarOutputStream.
 
@@ -896,22 +1080,41 @@ COMMON PITFALLS TO AVOID
 10. DO NOT assume ZipInputStream can handle all zip files - some features
     (like random access to entries) require ZipFile with a seekable stream.
 
+11. DO NOT call ZipFile.Add/Delete/AddDirectory outside a BeginUpdate() /
+    CommitUpdate() pair, and do not forget CommitUpdate() - without it the
+    changes are discarded.
+
+12. DO NOT expect ZipFile.Delete(string) to throw when the entry is missing:
+    the string overload returns false instead. The ZipEntry overload returns
+    void.
+
+13. DO NOT pass a level argument positionally to GZip.Compress thinking it is
+    the third parameter - the third parameter is isStreamOwner, and level is
+    the FIFTH (after bufferSize). Use named arguments.
+
+14. DO NOT assume the extracted entry name is safe to pass straight to
+    File.Create. Entry names come from the archive; join them onto your output
+    directory and verify the result stays inside it before writing.
+
 ================================================================================
 
-WHAT THIS LIBRARY DOES NOT DO
-===============================
+WHAT THIS PACKAGE DOES NOT DO
+=============================
 
 Do NOT attempt to use CodeBrix.Compression for the following - it will not work:
 
   - Extracting Zip entries compressed with the legacy Zip "Implode" (method 6)
     or "Shrink" (method 1) methods (note: the separate PKWARE DCL "implode"
     raw stream format IS supported - see DCL DECOMPRESSION above)
+  - Compressing (as opposed to decompressing) DCL "imploded" data
+  - Updating GZip, Tar or BZip2 archives in place - only Zip supports update
   - RAR archive creation or extraction
   - 7z (7-Zip) archive creation or extraction
   - XZ compression
   - Zstandard (zstd) compression
   - LZ4 compression
   - Snappy compression
+  - Brotli compression (use System.IO.Compression.BrotliStream)
   - Image compression (use CodeBrix.Imaging for image format conversion)
   - PDF creation (use CodeBrix.PdfDocuments instead)
   - File encryption outside of zip archives (AES encryption is zip-specific)
@@ -924,167 +1127,171 @@ for decompressing raw PKWARE DCL "imploded" streams.
 
 ================================================================================
 
-MINIMUM VIABLE PROJECT TEMPLATE
-=================================
-
-To scaffold a new .NET 10 console project that uses CodeBrix.Compression:
-
-    dotnet new console -n MyCompressionApp --framework net10.0
-    cd MyCompressionApp
-    dotnet add package CodeBrix.Compression.MitLicenseForever
-
-Then in Program.cs:
-
-    using CodeBrix.Compression.Zip;
-
-    // Create a simple zip archive
-    using var fileStream = File.Create("output.zip");
-    using var zipStream = new ZipOutputStream(fileStream);
-    zipStream.SetLevel(9);
-
-    var entry = new ZipEntry("hello.txt") { DateTime = DateTime.Now };
-    zipStream.PutNextEntry(entry);
-
-    var data = System.Text.Encoding.UTF8.GetBytes("Hello, World!");
-    zipStream.Write(data, 0, data.Length);
-
-    zipStream.CloseEntry();
-    zipStream.Finish();
-
-    Console.WriteLine("Created output.zip!");
-
-Build and run:
-
-    dotnet build
-    dotnet run
-
-================================================================================
-
-DEEPER LEARNING: TEST FILE CROSS-REFERENCES
-=============================================
+WORKING EXAMPLES ON GITHUB
+==========================
 
 The CodeBrix.Compression.Tests project in the source repository contains
 extensive working code examples. If the documentation above is not sufficient
-for a specific task, fetch and read the relevant test file from:
+for a specific task, fetch and read the relevant test file:
 
-    https://github.com/ellisnet/CodeBrix.Compression
-    Path: test/CodeBrix.Compression.Tests/
+    https://github.com/ellisnet/CodeBrix.Compression/tree/main/tests/CodeBrix.Compression.Tests
 
 Feature-to-test-file mapping:
 
   FastZip (high-level zip/unzip, encryption methods, unicode filenames,
   timestamp preservation, directory handling, stream ownership):
-    -> test/CodeBrix.Compression.Tests/Zip/FastZipHandling.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/FastZipHandling.cs
 
   General zip archive handling:
-    -> test/CodeBrix.Compression.Tests/Zip/GeneralHandling.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/GeneralHandling.cs
 
   Zip stream operations (streaming input/output):
-    -> test/CodeBrix.Compression.Tests/Zip/StreamHandling.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/StreamHandling.cs
 
   Zip async operations:
-    -> test/CodeBrix.Compression.Tests/Zip/ZipStreamAsyncTests.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/ZipStreamAsyncTests.cs
 
-  ZipFile random access operations:
-    -> test/CodeBrix.Compression.Tests/Zip/ZipFileHandling.cs
+  ZipFile random access, BeginUpdate/Add/Delete/CommitUpdate, TestArchive:
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/ZipFileHandling.cs
 
   Zip entry creation and properties:
-    -> test/CodeBrix.Compression.Tests/Zip/ZipEntryHandling.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/ZipEntryHandling.cs
 
   Zip entry factory patterns:
-    -> test/CodeBrix.Compression.Tests/Zip/ZipEntryFactoryHandling.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/ZipEntryFactoryHandling.cs
 
   Zip encryption (AES-128, AES-256, ZipCrypto):
-    -> test/CodeBrix.Compression.Tests/Zip/ZipEncryptionHandling.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/ZipEncryptionHandling.cs
 
   AES encryption internals (transforms, streams, salt/block validation):
-    -> test/CodeBrix.Compression.Tests/Encryption/EncryptionTests.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Encryption/EncryptionTests.cs
 
   Zip extra data fields:
-    -> test/CodeBrix.Compression.Tests/Zip/ZipExtraDataHandling.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/ZipExtraDataHandling.cs
 
   Zip name transforms and path handling:
-    -> test/CodeBrix.Compression.Tests/Zip/ZipNameTransformHandling.cs
-    -> test/CodeBrix.Compression.Tests/Zip/WindowsNameTransformHandling.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/ZipNameTransformHandling.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/WindowsNameTransformHandling.cs
 
   Zip string encoding:
-    -> test/CodeBrix.Compression.Tests/Zip/ZipStringsTests.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/ZipStringsTests.cs
 
   Zip corruption handling:
-    -> test/CodeBrix.Compression.Tests/Zip/ZipCorruptionHandling.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/ZipCorruptionHandling.cs
 
   Zip passthrough operations:
-    -> test/CodeBrix.Compression.Tests/Zip/PassthroughTests.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/PassthroughTests.cs
 
   Core zip test infrastructure (in-memory creation, data verification):
-    -> test/CodeBrix.Compression.Tests/Zip/ZipTests.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/ZipTests.cs
 
   GZip compression/decompression, stream ownership, flushing, error handling:
-    -> test/CodeBrix.Compression.Tests/GZip/GZipTests.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/GZip/GZipTests.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/GZip/GZipAsyncTests.cs
 
   Tar archives (create, read, extract, long names, encoding, async,
   entry properties, checksums, stream ownership, tar.gz integration):
-    -> test/CodeBrix.Compression.Tests/Tar/TarTests.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Tar/TarTests.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Tar/TarArchiveTests.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Tar/TarInputStreamTests.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Tar/TarBufferTests.cs
 
   BZip2 compression/decompression:
-    -> test/CodeBrix.Compression.Tests/BZip2/Bzip2Tests.cs
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/BZip2/Bzip2Tests.cs
+
+  Raw Deflate/Inflate layer:
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Base/InflaterDeflaterTests.cs
 
   Checksum operations (CRC-32, Adler32):
-    -> test/CodeBrix.Compression.Tests/Checksum/
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Checksum/ChecksumTests.cs
 
-  LZW compression:
-    -> test/CodeBrix.Compression.Tests/Lzw/
+  LZW (.Z) decompression:
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Lzw/LzwTests.cs
 
   DCL (PKWARE DCL "implode") decompression:
-    -> test/CodeBrix.Compression.Tests/Dcl/
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Dcl/DclTests.cs
 
-  Serialization:
-    -> test/CodeBrix.Compression.Tests/Serialization/
+  Core helpers (name and path filters, file-system scanning, name transforms):
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Core/CoreTests.cs
 
-HOW TO USE: Fetch the raw file content from GitHub using a URL like:
-    https://raw.githubusercontent.com/ellisnet/CodeBrix.Compression/main/{path}
-For example:
-    https://raw.githubusercontent.com/ellisnet/CodeBrix.Compression/main/test/CodeBrix.Compression.Tests/Zip/FastZipHandling.cs
+  Exception serialization:
+    -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Serialization/SerializationTests.cs
+
+HOW TO USE: to fetch the raw text of any of the files above, replace
+"https://github.com/ellisnet/CodeBrix.Compression/blob/main/" with
+"https://raw.githubusercontent.com/ellisnet/CodeBrix.Compression/main/".
 
 ================================================================================
 
-API QUICK REFERENCE
-=====================
+QUICK REFERENCE CARD
+====================
 
 --- ZIP ---
 ZipOutputStream(stream)           Create zip output stream
   .SetLevel(0-9)                  Set compression level
-  .Password = "..."              Set password for encryption
-  .PutNextEntry(entry)           Start writing an entry
-  .CloseEntry()                  Finish writing current entry
-  .Finish()                      Finalize the archive
-  .IsStreamOwner                 Control underlying stream disposal
+  .Password = "..."               Set password for encryption
+  .PutNextEntry(entry)            Start writing an entry
+  .CloseEntry()                   Finish writing current entry
+  .Finish()                       Finalize the archive
+  .IsStreamOwner                  Control underlying stream disposal
 
 ZipInputStream(stream)            Create zip input stream
-  .GetNextEntry()                Get next entry (null when done)
-  .Password = "..."             Set password for decryption
+  .GetNextEntry()                 Get next entry (null when done)
+  .Password = "..."               Set password for decryption
 
 ZipFile("path")                   Open zip for random access
 ZipFile(stream)                   Open zip from stream
-  .GetInputStream(entry)         Get stream for specific entry
-  .Count                         Number of entries
+ZipFile.Create("path")            Create a new, empty zip for update
+ZipFile.Create(stream)            Create a new, empty zip in a stream
+  .GetInputStream(entry)          Get stream for specific entry
+  .Count                          Number of entries
+  [index]                         Entry by position
+  .Password                       Password for encrypted entries
+  .UseZip64                       Off | On | Dynamic
+  .UpdateMode                     FileUpdateMode of the active storage
+  .TestArchive(testData)          Verify the archive
+  .TestArchive(testData, strategy, resultHandler)
+
+  Zip UPDATE API (all between BeginUpdate and CommitUpdate):
+  .BeginUpdate()                  Start a batch of changes
+  .BeginUpdate(archiveStorage)    Start a batch using explicit storage
+  .BeginUpdate(archiveStorage, dataSource)
+  .Add(fileName)                  Add a file from disk
+  .Add(fileName, entryName)       Add a file under a different entry name
+  .Add(fileName, compressionMethod[, useUnicodeText])
+  .Add(entry)                     Add an empty/prepared ZipEntry
+  .Add(dataSource, entryName[, compressionMethod[, useUnicodeText]])
+  .Add(dataSource, entry)         Add from an IStaticDataSource
+  .AddDirectory(directoryName)    Add a directory entry
+  .Delete(fileName)               Delete by name; returns false if absent
+  .Delete(entry)                  Delete a specific ZipEntry
+  .CommitUpdate()                 Apply the batch
+  .AbortUpdate()                  Discard the batch
+
+IStaticDataSource                 Stream GetSource()
+IArchiveStorage                   Update staging abstraction
+DiskArchiveStorage(file[, updateMode])
+MemoryArchiveStorage([updateMode])
+FileUpdateMode                    Safe | Direct
+TestStrategy                      FindFirstError | FindAllErrors
+ZipTestResultHandler              void (TestStatus status, string message)
 
 ZipEntry("name")                  Create a zip entry
-  .DateTime                      Modification date
-  .AESKeySize                    0, 128, or 256
-  .Size / .CompressedSize        File sizes
-  .IsFile / .IsDirectory         Entry type
+  .DateTime                       Modification date
+  .AESKeySize                     0, 128, or 256
+  .Size / .CompressedSize         File sizes
+  .IsFile / .IsDirectory          Entry type
 
 FastZip                           High-level convenience class
   .CreateZip(zip, dir, recurse, filter)
   .ExtractZip(zip, dir, filter)
-  .Password                      Encryption password
-  .EntryEncryptionMethod          ZipCrypto, AES128, AES256
+  .Password                       Encryption password
+  .EntryEncryptionMethod          None (default), ZipCrypto, AES128, AES256
   .CreateEmptyDirectories         Preserve empty dirs
   .RestoreDateTimeOnExtract       Preserve timestamps
 
 --- GZIP ---
-GZip.Compress(inStream, outStream, isStreamOwner)
+GZip.Compress(inStream, outStream, isStreamOwner, bufferSize = 512, level = 6)
 GZip.Decompress(inStream, outStream, isStreamOwner)
 GZipOutputStream(stream)          Compression stream
 GZipInputStream(stream)           Decompression stream
@@ -1094,7 +1301,7 @@ TarArchive.CreateOutputTarArchive(stream)
 TarArchive.CreateInputTarArchive(stream, nameEncoding)
   .WriteEntry(entry, recurse)
   .ExtractContents(path)
-  .RootPath                      Base path for entries
+  .RootPath                       Base path for entries
   .IsStreamOwner
 
 TarOutputStream(stream, nameEncoding)
@@ -1106,11 +1313,11 @@ TarInputStream(stream, nameEncoding)
   .GetNextEntry()
   .GetNextEntryAsync(ct)
 
-TarEntry.CreateTarEntry("name")   Create entry by name
+TarEntry.CreateTarEntry("name")    Create entry by name
 TarEntry.CreateEntryFromFile(path) Create from file system
 
 --- BZIP2 ---
-BZip2.Compress(inStream, outStream, isStreamOwner, level)
+BZip2.Compress(inStream, outStream, isStreamOwner, level)   // level required
 BZip2.Decompress(inStream, outStream, isStreamOwner)
 BZip2OutputStream(stream)
 BZip2InputStream(stream)
@@ -1118,12 +1325,12 @@ BZip2InputStream(stream)
 --- DCL ---
 Dcl.Decompress(inStream, outStream, isStreamOwner)
 DclInputStream(stream)            DCL "implode" decompression stream
-  .IsStreamOwner                 Control underlying stream disposal
+  .IsStreamOwner                  Control underlying stream disposal
 
 --- CHECKSUMS ---
 Crc32                             CRC-32 checksum
 Adler32                           Adler-32 checksum
-  .Update(buffer)                Add data
-  .Value                         Get checksum value
+  .Update(buffer)                 Add data
+  .Value                          Get checksum value
 
 ================================================================================
