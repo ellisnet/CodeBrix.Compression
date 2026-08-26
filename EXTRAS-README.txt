@@ -20,7 +20,7 @@ examples that AGENT-README.txt links to under "WORKING EXAMPLES ON GITHUB".
 
 How to run it:
 
-    dotnet test CodeBrix.Compression.sln
+    dotnet test CodeBrix.Compression.slnx
 
 No environment variables, downloads or fixtures are required. See
 MAINTAINER-README.txt for the one soft dependency (an optional 7-Zip binary used

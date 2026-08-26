@@ -1,14 +1,27 @@
 # CodeBrix.Compression
 
-Create, read and extract Zip, GZip, Tar and BZip2 archives using .NET; plus decompress PKWARE DCL "imploded" data.
+Create, read and extract Zip, GZip, Tar and BZip2 archives using .NET; plus decompress PKWARE DCL "imploded" and LZW ".Z" data.
 
-CodeBrix.Compression is a .NET library for working with compressed archives in multiple formats including Zip, GZip, Tar and BZip2 - and can decompress data in the PKWARE Data Compression Library (DCL) "imploded" format used by many MS-DOS-era installers. It supports encryption (AES-128 and AES-256), Zip64, and streaming operations for both creation and extraction of archives.
+CodeBrix.Compression is a .NET library for working with compressed archives in multiple formats including Zip, GZip, Tar and BZip2 - and can decompress raw data in the PKWARE Data Compression Library (DCL) "imploded" format used by many MS-DOS-era installers, as well as the LZW/LZC ".Z" format written by the classic Unix compress utility. It supports encryption (AES-128 and AES-256), Zip64, and streaming operations for both creation and extraction of archives.
 
 CodeBrix.Compression has no dependencies other than .NET, and is provided as a .NET 10 library and associated `CodeBrix.Compression.MitLicenseForever` NuGet package.
 
 CodeBrix.Compression supports applications and assemblies that target Microsoft .NET version 10.0 and later. Microsoft .NET version 10.0 is a Long-Term Supported (LTS) version of .NET, and was released on Nov 11, 2025; and will be actively supported by Microsoft until Nov 14, 2028. Please update your C#/.NET code and projects to the latest LTS version of Microsoft .NET.
 
 CodeBrix.Compression is a fork of the code of the popular SharpZipLib library version 1.4.2 - see below for licensing details.
+
+## Installation
+
+```
+dotnet add package CodeBrix.Compression.MitLicenseForever
+```
+
+Note that the NuGet package ID and the namespace are different - there is no package named plain `CodeBrix.Compression`:
+
+* NuGet package ID: `CodeBrix.Compression.MitLicenseForever`
+* Assembly and root namespace: `CodeBrix.Compression` - i.e. `using CodeBrix.Compression.Zip;`
+
+The package has no NuGet dependencies and no native libraries; it depends only on the .NET base class library. XML documentation (IntelliSense) ships alongside the assembly.
 
 ## CodeBrix.Compression supports:
 
@@ -17,12 +30,15 @@ CodeBrix.Compression is a fork of the code of the popular SharpZipLib library ve
 * Tar archives (create, read, extract)
 * BZip2 compression and decompression
 * DCL (PKWARE Data Compression Library "implode" format) decompression
+* LZW (.Z) decompression
 * AES-128 and AES-256 encryption for Zip archives
 * Zip64 extensions for large files
 * Streaming (non-seekable) input and output
 * In-memory archive operations
 * Checksums (CRC-32, Adler32, BZip2 CRC)
 * Many more...
+
+Only Zip archives can be updated in place; GZip, Tar and BZip2 are create-and-extract only. DCL and LZW are decompression only. The library does not read or write RAR, 7z, XZ, Zstandard, LZ4, Snappy or Brotli, and it cannot extract Zip entries stored with the legacy Zip "Implode" (method 6) or "Shrink" (method 1) compression methods.
 
 ## Sample Code
 
@@ -185,7 +201,14 @@ using var outStream = File.Create("data.bin");
 inStream.CopyTo(outStream);
 ```
 
-Note that significant additional sample code is available in the `CodeBrix.Compression.Tests` project.
+## Documentation
+
+The NuGet package includes `AGENT-README.txt`, a complete API reference and usage guide written for AI coding agents - point your agent at that file when it is writing code against this library.
+
+Significant additional sample code is available in the `CodeBrix.Compression.Tests` project:
+https://github.com/ellisnet/CodeBrix.Compression/tree/main/tests/CodeBrix.Compression.Tests
+
+Note that the test project has `InternalsVisibleTo` access to the library, so a few of the helpers it uses are internal and are not available to package consumers.
 
 ## License
 

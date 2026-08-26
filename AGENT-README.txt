@@ -7,8 +7,9 @@ OVERVIEW
 ========
 CodeBrix.Compression is a .NET library for creating, reading, updating, and
 extracting compressed archives in multiple formats: Zip, GZip, Tar, and BZip2.
-It can also decompress data in the PKWARE Data Compression Library (DCL)
-"imploded" stream format used by many MS-DOS-era installers.
+It can also decompress two raw legacy stream formats: PKWARE Data Compression
+Library (DCL) "imploded" data, used by many MS-DOS-era installers, and LZW/LZC
+".Z" data produced by the classic Unix compress utility.
 
 It supports encryption (AES-128, AES-256, ZipCrypto), Zip64 extensions for large
 files, streaming operations, in-memory archive operations, and checksums.
@@ -86,6 +87,7 @@ GZip     | Yes    | Yes  | Yes     | No     | No
 Tar      | Yes    | Yes  | Yes     | No     | No
 BZip2    | Yes    | Yes  | Yes     | No     | No
 DCL      | No     | Yes  | Yes     | No     | No
+LZW (.Z) | No     | Yes  | Yes     | No     | No
 
 Additional features:
   - Zip64 extensions for large files (>4GB)
@@ -762,6 +764,76 @@ the package.
 
 ================================================================================
 
+LZW (.Z) DECOMPRESSION
+======================
+
+LZW here means the LZC variant of Lempel-Ziv-Welch written by the classic Unix
+compress utility, whose output normally carries the ".Z" file extension. Like
+DCL, it is a raw compressed stream and not an archive: one .Z stream holds a
+single file's worth of data and carries no file name, timestamp or directory
+structure. Archives of that era pair the two formats - "archive.tar.Z" is a
+tar archive wrapped in a single .Z stream, so you wrap one stream in the other
+(see the second example below).
+
+Decompression is supported; compression is NOT. There is no LzwOutputStream
+and no static Lzw helper class - LzwInputStream is the entire public surface.
+
+A .Z stream starts with a 3-byte header:
+  bytes 0-1: the magic marker 0x1f 0x9d
+  byte 2:    flags - the low 5 bits hold max_bits (16 at most), the high bit
+             is the block-mode flag, and the reserved bits must be clear
+
+Using LzwInputStream (streaming):
+
+    using CodeBrix.Compression.Lzw;
+
+    using var inStream = new LzwInputStream(File.OpenRead("data.Z"));
+    using var outStream = File.Create("data.bin");
+    inStream.CopyTo(outStream);
+
+Reading a .Z-compressed tar archive:
+
+    using CodeBrix.Compression.Lzw;
+    using CodeBrix.Compression.Tar;
+
+    using var lzwStream = new LzwInputStream(File.OpenRead("archive.tar.Z"));
+    using var tarArchive = TarArchive.CreateInputTarArchive(lzwStream, null);
+    tarArchive.ExtractContents(@"C:\Extracted");
+
+Error handling: a bad header (wrong magic bytes, more than 16 bits, or
+reserved flag bits set) and corrupt code sequences both throw LzwException,
+which derives from CompressionExceptionBase. An empty or truncated stream
+throws as well. The .Z format carries no checksum, so callers wanting
+integrity verification must compare the output against an externally known
+length or checksum.
+
+LzwInputStream is read-only and forward-only: CanSeek is false, and Seek,
+SetLength, Write, WriteByte and setting Position all throw
+NotSupportedException. IsStreamOwner (default true) controls whether disposing
+the LzwInputStream also disposes the underlying stream.
+
+PITFALL - Length and Position do not mean what you would expect on this
+stream, and unlike the other read-only streams here they do NOT throw:
+
+  -> Length returns the byte count from the most recent internal fill of the
+     compressed input buffer. It is not the decompressed size, not the
+     compressed size, and not a running total.
+  -> Position returns the position of the UNDERLYING compressed stream, not
+     the number of decompressed bytes produced so far.
+
+Never use either one to size a buffer or to track extraction progress. Read
+until Read returns 0 (or use CopyTo) instead.
+
+LzwConstants exposes the format's header constants (MAGIC, MAX_BITS,
+BIT_MASK, BLOCK_MODE_MASK, HDR_SIZE, INIT_BITS) if you need to sniff a stream
+before opening it.
+
+The decoder reaches this library through SharpZipLib from Ronald Tschalar's
+Java implementation, which was itself based on the unlzw.c code in the gzip
+package.
+
+================================================================================
+
 CHECKSUMS
 =========
 
@@ -1107,6 +1179,8 @@ Do NOT attempt to use CodeBrix.Compression for the following - it will not work:
     or "Shrink" (method 1) methods (note: the separate PKWARE DCL "implode"
     raw stream format IS supported - see DCL DECOMPRESSION above)
   - Compressing (as opposed to decompressing) DCL "imploded" data
+  - Compressing (as opposed to decompressing) LZW ".Z" data - there is no
+    equivalent of the Unix compress utility here, only of uncompress
   - Updating GZip, Tar or BZip2 archives in place - only Zip supports update
   - RAR archive creation or extraction
   - 7z (7-Zip) archive creation or extraction
@@ -1123,7 +1197,7 @@ Do NOT attempt to use CodeBrix.Compression for the following - it will not work:
 
 This library IS for: creating, reading, extracting, and updating archives in
 Zip, GZip, Tar, and BZip2 formats, with optional AES encryption for Zip; and
-for decompressing raw PKWARE DCL "imploded" streams.
+for decompressing raw PKWARE DCL "imploded" and LZW ".Z" streams.
 
 ================================================================================
 
@@ -1326,6 +1400,11 @@ BZip2InputStream(stream)
 Dcl.Decompress(inStream, outStream, isStreamOwner)
 DclInputStream(stream)            DCL "implode" decompression stream
   .IsStreamOwner                  Control underlying stream disposal
+
+--- LZW ---
+LzwInputStream(stream)            LZW/LZC ".Z" decompression stream
+  .IsStreamOwner                  Control underlying stream disposal
+LzwConstants                      .Z header constants (MAGIC, MAX_BITS, ...)
 
 --- CHECKSUMS ---
 Crc32                             CRC-32 checksum

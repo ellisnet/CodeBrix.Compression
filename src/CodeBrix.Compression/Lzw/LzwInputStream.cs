@@ -23,7 +23,7 @@ namespace CodeBrix.Compression.Lzw;
 /// using System.IO;
 ///
 /// using CodeBrix.Compression.Core;
-/// using CodeBrix.Compression.LZW;
+/// using CodeBrix.Compression.Lzw;
 ///
 /// class MainClass
 /// {

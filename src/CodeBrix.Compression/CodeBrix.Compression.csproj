@@ -2,6 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <!--
+      Emit CodeBrix.Compression.xml so the library's XML doc comments reach
+      consumers as IntelliSense. The file is picked up automatically by
+      `dotnet pack` and shipped alongside the assembly in lib/net10.0.
+    -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <!--
@@ -50,7 +56,7 @@
     <PackageId>CodeBrix.Compression.MitLicenseForever</PackageId>
     <Product>CodeBrix.Compression</Product>
     <Title>CodeBrix.Compression</Title>
-    <Description>Create, read and extract Zip, GZip, Tar and BZip2 archives using .NET; plus decompress PKWARE DCL "imploded" data. Supports AES-128 and AES-256 encryption, Zip64, and streaming operations. A fork of SharpZipLib 1.4.2 with no dependencies other than .NET.</Description>
+    <Description>Create, read and extract Zip, GZip, Tar and BZip2 archives using .NET; plus decompress PKWARE DCL "imploded" and LZW ".Z" data. Supports AES-128 and AES-256 encryption, Zip64, and streaming operations. A fork of SharpZipLib 1.4.2 with no dependencies other than .NET.</Description>
     <Authors>Jeremy Ellis</Authors>
     <Copyright>Copyright (c) 2026 Jeremy Ellis and contributors</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -61,7 +67,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <PackageTags>zip;gzip;tar;bzip2;dcl;implode;pkware;compression;archive;encryption;aes;zip64;sharpziplib;CodeBrix</PackageTags>
+    <PackageTags>zip;gzip;tar;bzip2;dcl;implode;pkware;lzw;z;compress;compression;archive;encryption;aes;zip64;sharpziplib;CodeBrix</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

@@ -20,7 +20,7 @@ There are no sibling packages, no native assets and no platform-specific heads.
 REPOSITORY LAYOUT
 =================
 
-    CodeBrix.Compression.sln          Solution (Solution Items + Tests folder).
+    CodeBrix.Compression.slnx         Solution (Solution Items + Tests folder).
     icon-codebrix-128.png             Package icon; packed from the repo root.
     LICENSE                           MIT.
     THIRD-PARTY-NOTICES.txt           Upstream notices; packed into the nupkg.
@@ -65,8 +65,8 @@ it.
 BUILDING
 ========
 
-    dotnet restore CodeBrix.Compression.sln
-    dotnet build CodeBrix.Compression.sln
+    dotnet restore CodeBrix.Compression.slnx
+    dotnet build CodeBrix.Compression.slnx
 
 Target framework is net10.0 only - never multi-target and never add an older
 TFM. The library is fully managed with zero PackageReference dependencies; keep
@@ -76,7 +76,7 @@ property of the package.
 TESTING
 =======
 
-    dotnet test CodeBrix.Compression.sln
+    dotnet test CodeBrix.Compression.slnx
 
 The test project uses xUnit v3 with Microsoft.NET.Test.Sdk and
 xunit.runner.visualstudio. There are no opt-in environment variables and no
