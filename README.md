@@ -8,8 +8,6 @@ CodeBrix.Compression has no dependencies other than .NET, and is provided as a .
 
 CodeBrix.Compression supports applications and assemblies that target Microsoft .NET version 10.0 and later. Microsoft .NET version 10.0 is a Long-Term Supported (LTS) version of .NET, and was released on Nov 11, 2025; and will be actively supported by Microsoft until Nov 14, 2028. Please update your C#/.NET code and projects to the latest LTS version of Microsoft .NET.
 
-CodeBrix.Compression is a fork of the code of the popular SharpZipLib library version 1.4.2 - see below for licensing details.
-
 ## Installation
 
 ```
@@ -201,6 +199,31 @@ using var outStream = File.Create("data.bin");
 inStream.CopyTo(outStream);
 ```
 
+### LZW (.Z) Decompression
+
+```csharp
+using CodeBrix.Compression.Lzw;
+
+// Decompress a .Z stream written by the classic Unix compress utility.
+// LzwInputStream is read-only and forward-only; there is no LzwOutputStream,
+// because compression to .Z is not supported.
+using var inStream = new LzwInputStream(File.OpenRead("data.Z"));
+using var outStream = File.Create("data.bin");
+inStream.CopyTo(outStream);
+```
+
+A `.tar.Z` file is a tar archive wrapped in a single `.Z` stream, so one stream
+goes inside the other:
+
+```csharp
+using CodeBrix.Compression.Lzw;
+using CodeBrix.Compression.Tar;
+
+using var lzwStream = new LzwInputStream(File.OpenRead("archive.tar.Z"));
+using var tarArchive = TarArchive.CreateInputTarArchive(lzwStream, null);
+tarArchive.ExtractContents("output-folder");
+```
+
 ## Documentation
 
 The NuGet package includes `AGENT-README.txt`, a complete API reference and usage guide written for AI coding agents - point your agent at that file when it is writing code against this library.
@@ -212,8 +235,8 @@ Note that the test project has `InternalsVisibleTo` access to the library, so a 
 
 ## License
 
-The project is licensed under the MIT License. see: https://en.wikipedia.org/wiki/MIT_License
+CodeBrix.Compression is licensed under the MIT License - see the
+[LICENSE](https://github.com/ellisnet/CodeBrix.Compression/blob/main/LICENSE) file.
 
-The DCL ("implode" format) decompression code is a C# port of Mark Adler's "blast" reference decoder (zlib contrib), used under the zlib license - see THIRD-PARTY-NOTICES.txt for the full notice.
-
-All code from SharpZipLib version 1.4.2 was licensed under the MIT License. This project (CodeBrix.Compression) complies with all provisions of the open source license of SharpZipLib version 1.4.2 (code) - and will make all modified, adapted and derived code incorporated into the CodeBrix.Compression library freely available as open source, under the same license as the SharpZipLib code license.
+For licensing and provenance information about the open source code included in
+this package, see [THIRD-PARTY-NOTICES.txt](https://github.com/ellisnet/CodeBrix.Compression/blob/main/THIRD-PARTY-NOTICES.txt).

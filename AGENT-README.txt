@@ -18,7 +18,7 @@ Target framework: .NET 10 or later.
 
 CodeBrix.Compression has ZERO external dependencies beyond .NET itself.
 
-PROVENANCE: CodeBrix.Compression is a fork of SharpZipLib 1.4.2, plus a DCL
+PROVENANCE: CodeBrix.Compression is a fork of SharpZipLib, plus a DCL
 "implode" decoder ported from Mark Adler's "blast" reference decoder. If you are
 familiar with SharpZipLib, the API surface is very similar, but ALL namespaces
 use "CodeBrix.Compression" instead of "ICSharpCode.SharpZipLib". Do NOT write

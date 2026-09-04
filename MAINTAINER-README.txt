@@ -20,7 +20,14 @@ There are no sibling packages, no native assets and no platform-specific heads.
 REPOSITORY LAYOUT
 =================
 
-    CodeBrix.Compression.slnx         Solution (Solution Items + Tests folder).
+    CodeBrix.Compression.slnx         Solution. The Solution Items folder carries
+                                      .gitignore, AGENT-README.txt,
+                                      EXTRAS-README.txt, global.json,
+                                      icon-codebrix-128.png, LICENSE,
+                                      MAINTAINER-README.txt, README-INDEX.txt,
+                                      README.md and THIRD-PARTY-NOTICES.txt; the
+                                      Tests folder carries the test project.
+    global.json                       Selects the test runner; see TESTING.
     icon-codebrix-128.png             Package icon; packed from the repo root.
     LICENSE                           MIT.
     THIRD-PARTY-NOTICES.txt           Upstream notices; packed into the nupkg.
@@ -68,15 +75,35 @@ BUILDING
     dotnet restore CodeBrix.Compression.slnx
     dotnet build CodeBrix.Compression.slnx
 
+Requirements: the .NET 10 SDK. global.json at the repository root does NOT pin
+an SDK version, so the newest installed .NET 10 SDK is still used; it exists
+solely to select the test runner -- see TESTING.
+
 Target framework is net10.0 only - never multi-target and never add an older
 TFM. The library is fully managed with zero PackageReference dependencies; keep
 it that way, since "no dependencies beyond .NET" is a documented consumer-facing
 property of the package.
 
+<GenerateDocumentationFile> is true, so the build emits the XML documentation
+file that ships beside the assembly, and every missing XML doc comment on a
+public or protected-on-unsealed member is a CS1591 warning. Fix CS1591 by
+writing the documentation at the source, never by adding <NoWarn>,
+<WarningLevel> or a #pragma warning disable.
+
 TESTING
 =======
 
     dotnet test CodeBrix.Compression.slnx
+
+THE TEST RUNNER IS Microsoft.Testing.Platform (MTP), selected by global.json at
+the repository root:
+
+    { "test": { "runner": "Microsoft.Testing.Platform" } }
+
+Because that setting lives in global.json rather than in the csproj, it applies
+to every `dotnet test` run anywhere in the repository, including CI. The file
+has no `sdk` section and pins no SDK version. Keep it committed -- without it
+`dotnet test` silently falls back to the older VSTest bridge.
 
 The test project uses xUnit v3 with Microsoft.NET.Test.Sdk and
 xunit.runner.visualstudio. There are no opt-in environment variables and no

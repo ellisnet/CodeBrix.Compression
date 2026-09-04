@@ -12,7 +12,7 @@ AGENT-README FILES (consumer documentation, one per NuGet package)
   AGENT-README.txt
       CodeBrix.Compression.MitLicenseForever — create, read, update and extract
       Zip, GZip, Tar and BZip2 archives, and decompress PKWARE DCL "imploded"
-      streams.
+      and LZW ".Z" streams.
 
 MAINTAINER AND EXTRAS
 ---------------------
@@ -26,6 +26,8 @@ GENERAL
 -------
   README.md
       Human-facing overview shown on GitHub and nuget.org.
+  THIRD-PARTY-NOTICES.txt
+      What came from where, and under which licences.
   README-INDEX.txt
       This file.
 
