@@ -29,7 +29,7 @@ The package has no NuGet dependencies and no native libraries; it depends only o
 * BZip2 compression and decompression
 * DCL (PKWARE Data Compression Library "implode" format) decompression
 * LZW (.Z) decompression
-* AES-128 and AES-256 encryption for Zip archives
+* AES-128 and AES-256 encryption for Zip archives (legacy ZipCrypto entries can be read, but are never written)
 * Zip64 extensions for large files
 * Streaming (non-seekable) input and output
 * In-memory archive operations

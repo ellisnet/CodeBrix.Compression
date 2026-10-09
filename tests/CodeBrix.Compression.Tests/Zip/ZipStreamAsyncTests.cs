@@ -74,7 +74,8 @@ public class ZipStreamAsyncTests
         using var ms = new MemoryStream();
         var password = "f4ls3p0s1t1v3";
 
-        await using (var outStream = new ZipOutputStream(ms){IsStreamOwner = false, Password = password})
+        // ZipCrypto writing is only allowed under test
+        await using (var outStream = new ZipOutputStream(ms){IsStreamOwner = false, Password = password, IsUnderTest = true})
         {
             await outStream.PutNextEntryAsync(new ZipEntry("FirstFile"){AESKeySize = 0}, CancellationToken.None);
             await Utils.WriteDummyDataAsync(outStream, 12);

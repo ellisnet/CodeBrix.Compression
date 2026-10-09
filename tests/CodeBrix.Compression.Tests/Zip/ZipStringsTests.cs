@@ -129,6 +129,7 @@ public class ZipStringsTests
         using var ms = new MemoryStream();
         using (var zos = new ZipOutputStream(ms, StringCodec.FromCodePage(866)) { IsStreamOwner = false })
         {
+            zos.IsUnderTest = true; // ZipCrypto writing is only allowed under test
             zos.Password = "слово";
             zos.PutNextEntry(new ZipEntry("file1"));
             zos.Write(content, 0, content.Length);

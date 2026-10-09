@@ -230,6 +230,157 @@ public class ZipFileHandling : ZipBase
 
     [Fact]
     [Trait("Category", "Zip")]
+    public void ZipCryptoUpdateOfNewArchiveIsNotSupported()
+    {
+        using var memStream = new MemoryStream();
+        using var zf = new ZipFile(memStream, leaveOpen: true);
+        zf.Password = "Hello";
+
+        zf.BeginUpdate(new MemoryArchiveStorage());
+        zf.Add(new StringMemoryDataSource("0001000"), "a.dat");
+
+        var exception = Assert.Throws<NotSupportedException>(() => zf.CommitUpdate());
+        Assert.Contains("AES encryption", exception.Message);
+    }
+
+    [Theory]
+    [InlineData(FileUpdateMode.Direct)]
+    [InlineData(FileUpdateMode.Safe)]
+    [Trait("Category", "Zip")]
+    public void ZipCryptoUpdateOfExistingArchiveIsNotSupportedAndLeavesArchiveUnchanged(FileUpdateMode updateMode)
+    {
+        using var memStream = new MemoryStream();
+        using (var zf = new ZipFile(memStream, leaveOpen: true))
+        {
+            zf.BeginUpdate(new MemoryArchiveStorage());
+            zf.Add(new StringMemoryDataSource("Aha"), "No1", CompressionMethod.Stored);
+            zf.CommitUpdate();
+        }
+
+        var original = memStream.ToArray();
+        memStream.Seek(0, SeekOrigin.Begin);
+
+        using (var zf = new ZipFile(memStream, leaveOpen: true))
+        {
+            zf.Password = "pwd";
+            zf.BeginUpdate(new MemoryArchiveStorage(updateMode));
+            zf.Add(new StringMemoryDataSource("Zapata!"), "encrypttest.xml");
+
+            Assert.Throws<NotSupportedException>(() => zf.CommitUpdate());
+        }
+
+        Assert.Equal(original, memStream.ToArray());
+
+        memStream.Seek(0, SeekOrigin.Begin);
+        using (var zf = new ZipFile(memStream, leaveOpen: true))
+        {
+            Assert.Equal(1, zf.Count);
+            ZipTesting.AssertPassesTestArchive(zf);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Zip")]
+    public void UpdateWithPasswordStillAllowsDirectoriesAndDeletes()
+    {
+        using var memStream = new MemoryStream();
+        using (var zf = new ZipFile(memStream, leaveOpen: true))
+        {
+            zf.BeginUpdate(new MemoryArchiveStorage());
+            zf.Add(new StringMemoryDataSource("Aha"), "No1", CompressionMethod.Stored);
+            zf.Add(new StringMemoryDataSource("Oho"), "No2", CompressionMethod.Stored);
+            zf.CommitUpdate();
+        }
+
+        memStream.Seek(0, SeekOrigin.Begin);
+
+        using (var zf = new ZipFile(memStream, leaveOpen: true))
+        {
+            zf.Password = "pwd";
+            zf.BeginUpdate(new MemoryArchiveStorage());
+            zf.AddDirectory("folder");
+            zf.Delete("No2");
+            zf.CommitUpdate();
+
+            Assert.Equal(2, zf.Count);
+            Assert.True(zf.FindEntry("folder/", ignoreCase: false) >= 0);
+            Assert.True(zf.FindEntry("No2", ignoreCase: false) < 0);
+            ZipTesting.AssertPassesTestArchive(zf);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Zip")]
+    public void DataLessEntryAddedWithPasswordIsNotMarkedEncrypted()
+    {
+        using var memStream = new MemoryStream();
+        using (var zf = new ZipFile(memStream, leaveOpen: true))
+        {
+            zf.Password = "pwd";
+            zf.BeginUpdate(new MemoryArchiveStorage());
+            zf.Add(new ZipEntry("empty.txt") { Size = 0, CompressedSize = 0 });
+            zf.AddDirectory("folder");
+            zf.CommitUpdate();
+        }
+
+        memStream.Seek(0, SeekOrigin.Begin);
+        using (var zf = new ZipFile(memStream, leaveOpen: true))
+        {
+            var entry = zf.GetEntry("empty.txt");
+            Assert.NotNull(entry);
+            Assert.False(entry.IsCrypted, "A data-less entry has nothing to encrypt");
+            Assert.False(zf.GetEntry("folder/").IsCrypted);
+            ZipTesting.AssertPassesTestArchive(zf);
+
+            using var input = zf.GetInputStream(entry);
+            Assert.Equal(-1, input.ReadByte());
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Zip")]
+    public void ZipCryptoUpdateIsAllowedUnderTest()
+    {
+        using var memStream = new MemoryStream();
+        using (var zf = new ZipFile(memStream, leaveOpen: true))
+        {
+            zf.IsUnderTest = true;
+            zf.Password = "Hello";
+            zf.BeginUpdate(new MemoryArchiveStorage());
+            zf.Add(new StringMemoryDataSource("0001000"), "a.dat");
+            zf.CommitUpdate();
+        }
+
+        memStream.Seek(0, SeekOrigin.Begin);
+        using (var zf = new ZipFile(memStream, leaveOpen: true))
+        {
+            Assert.True(zf[0].IsCrypted);
+            Assert.Equal(0, zf[0].AESKeySize);
+        }
+    }
+
+    [Theory]
+    [InlineData(128)]
+    [InlineData(256)]
+    [Trait("Category", "Zip")]
+    public void AddEntryWithoutDataRejectsAesKeySize(int keySize)
+    {
+        using var memStream = new MemoryStream();
+        using var zf = new ZipFile(memStream, leaveOpen: true);
+        zf.BeginUpdate(new MemoryArchiveStorage());
+
+        var entry = new ZipEntry("empty.dat") { Size = 0, CompressedSize = 0, AESKeySize = keySize };
+        var dataEntry = new ZipEntry("data.dat") { AESKeySize = keySize };
+
+        var withoutData = Assert.Throws<NotSupportedException>(() => zf.Add(entry));
+        var withData = Assert.Throws<NotSupportedException>(() => zf.Add(new StringMemoryDataSource("x"), dataEntry));
+        Assert.Equal(withData.Message, withoutData.Message);
+
+        zf.AbortUpdate();
+    }
+
+    [Fact]
+    [Trait("Category", "Zip")]
     public void BasicEncryption()
     {
         const string testValue = "0001000";
@@ -237,6 +388,7 @@ public class ZipFileHandling : ZipBase
         using (var zf = new ZipFile(memStream))
         {
             zf.IsStreamOwner = false;
+            zf.IsUnderTest = true; // ZipCrypto writing is only allowed under test
             zf.Password = "Hello";
 
             var m = new StringMemoryDataSource(testValue);
@@ -274,6 +426,7 @@ public class ZipFileHandling : ZipBase
         {
             using (var zf = ZipFile.Create(tempFile))
             {
+                zf.IsUnderTest = true; // ZipCrypto writing is only allowed under test
                 zf.Password = "Hello";
 
                 var m = new StringMemoryDataSource(testValue);
@@ -338,6 +491,7 @@ public class ZipFileHandling : ZipBase
 
             var n = new StringMemoryDataSource(testValue);
 
+            g.IsUnderTest = true; // ZipCrypto writing is only allowed under test
             g.Password = "Axolotyl";
             g.UseZip64 = UseZip64.Off;
             g.IsStreamOwner = false;
@@ -964,6 +1118,7 @@ public class ZipFileHandling : ZipBase
             ZipTesting.AssertPassesTestArchive(testFile);
 
             testFile.BeginUpdate(new MemoryArchiveStorage(FileUpdateMode.Safe));
+            testFile.IsUnderTest = true; // ZipCrypto writing is only allowed under test
             testFile.Password = "pwd";
             testFile.Add(new StringMemoryDataSource("Zapata!"), "encrypttest.xml");
             testFile.CommitUpdate();
@@ -1000,6 +1155,7 @@ public class ZipFileHandling : ZipBase
             testFile.IsStreamOwner = true;
 
             testFile.BeginUpdate();
+            testFile.IsUnderTest = true; // ZipCrypto writing is only allowed under test
             testFile.Password = "pwd";
             testFile.Add(new StringMemoryDataSource("Zapata!"), "encrypttest.xml");
             testFile.CommitUpdate();
@@ -1625,6 +1781,7 @@ public class ZipFileHandling : ZipBase
         {
             if (encryptEntries)
             {
+                f.IsUnderTest = true; // ZipCrypto writing is only allowed under test
                 f.Password = password;
             }
 

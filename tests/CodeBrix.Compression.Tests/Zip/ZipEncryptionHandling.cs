@@ -89,6 +89,48 @@ public class ZipEncryptionHandling
         SevenZipHelper.VerifyZipWith7Zip(ms, "password");
     }
 
+    [Theory]
+    [InlineData(CompressionMethod.Deflated)]
+    [InlineData(CompressionMethod.Stored)]
+    public void ZipOutputStreamRefusesZipCryptoForEntryOfUnknownSize(CompressionMethod compressionMethod)
+    {
+        using var ms = new MemoryStream();
+        using var zipOutputStream = new ZipOutputStream(ms) { IsStreamOwner = false, Password = "password" };
+
+        // A new ZipEntry has Size == -1 (unknown) - it may carry data, so without AES it must be refused
+        var entry = new ZipEntry("unknown-size") { CompressionMethod = compressionMethod };
+        Assert.True(entry.Size < 0);
+
+        Assert.Throws<NotSupportedException>(() => zipOutputStream.PutNextEntry(entry));
+    }
+
+    [Fact]
+    public void ZipOutputStreamAllowsKnownEmptyEntryAndDirectoryWithPassword()
+    {
+        using var ms = new MemoryStream();
+        using var zipOutputStream = new ZipOutputStream(ms) { IsStreamOwner = false, Password = "password" };
+
+        zipOutputStream.PutNextEntry(new ZipEntry("folder/"));
+        zipOutputStream.PutNextEntry(new ZipEntry("empty") { Size = 0 });
+        zipOutputStream.Finish();
+    }
+
+    [Fact]
+    public void ZipOutputStreamAllowsZipCryptoForEntryOfUnknownSizeUnderTest()
+    {
+        using var ms = new MemoryStream();
+        using (var zipOutputStream = new ZipOutputStream(ms) { IsStreamOwner = false, Password = "password", IsUnderTest = true })
+        {
+            zipOutputStream.PutNextEntry(new ZipEntry("unknown-size"));
+            zipOutputStream.Write(new byte[] { 1, 2, 3 }, 0, 3);
+        }
+
+        ms.Seek(0, SeekOrigin.Begin);
+        using var zipFile = new ZipFile(ms, leaveOpen: true) { Password = "password" };
+        Assert.True(zipFile[0].IsCrypted);
+        Assert.Equal(0, zipFile[0].AESKeySize);
+    }
+
     [Fact]
     public void ZipFileAesDecryption()
     {
@@ -303,7 +345,8 @@ public class ZipEncryptionHandling
 
         // Update the archive with ZipFile
         {
-            using var zipFile = new ZipFile(memoryStream, leaveOpen: true) { Password = password };
+            // ZipCrypto writing is only allowed under test
+            using var zipFile = new ZipFile(memoryStream, leaveOpen: true) { Password = password, IsUnderTest = true };
             zipFile.BeginUpdate();
             zipFile.Add(new StringMemoryDataSource(testData), "AdditionalEntry", CompressionMethod.Deflated);
             zipFile.CommitUpdate();
@@ -483,6 +526,7 @@ public class ZipEncryptionHandling
     {
         using var zs = new ZipOutputStream(stream);
         zs.IsStreamOwner = false;
+        zs.IsUnderTest = true; // ZipCrypto writing is only allowed under test (keySize 0 builds ZipCrypto fixtures)
         zs.SetLevel(9); // 0-9, 9 being the highest level of compression
         zs.Password = password;  // optional. Null is the same as not setting. Required if using AES.
 
@@ -493,6 +537,7 @@ public class ZipEncryptionHandling
     {
         using var zs = new ZipOutputStream(stream);
         zs.IsStreamOwner = false;
+        zs.IsUnderTest = true; // ZipCrypto writing is only allowed under test (keySize 0 builds ZipCrypto fixtures)
         zs.SetLevel(9); // 0-9, 9 being the highest level of compression
         zs.Password = password;  // optional. Null is the same as not setting. Required if using AES.
 

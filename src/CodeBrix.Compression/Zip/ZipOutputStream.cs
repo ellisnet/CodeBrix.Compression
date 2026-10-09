@@ -392,11 +392,12 @@ public class ZipOutputStream : DeflaterOutputStream
             throw new NotImplementedException("Compression method not supported");
         }
 
-        //Only apply this rule for files - directories are not encrypted and should be supported regardless of encryption settings
+        //Only apply this rule for files - directories are not encrypted and should be supported regardless of encryption settings.
+        //An entry of UNKNOWN size (Size < 0) may carry data, so it is refused too; only a known-empty entry is let through.
         if ((!IsUnderTest)
             && (!string.IsNullOrEmpty(Password))
             && (!entry.IsDirectory)
-            && entry.Size > 0
+            && entry.Size != 0
             && entry.AESKeySize <= 0)
         {
             //It seems like we are trying to encrypt the next entry, but not using AES.  This is not supported.

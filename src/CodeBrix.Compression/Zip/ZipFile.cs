@@ -316,6 +316,13 @@ public enum FileUpdateMode
 /// </example>
 public class ZipFile : IEnumerable<ZipEntry>, IDisposable
 {
+    /// <summary>
+    /// We will only want to allow older PkzipClassic/ZipCrypto encryption to be used if the class
+    /// is under test. Otherwise, this encryption algorithm is not supported by the CodeBrix.Compression
+    ///  library for writing, and should not be used.
+    /// </summary>
+    internal bool IsUnderTest { get; set; }
+
     #region KeyHandling
 
     /// <summary>
@@ -355,9 +362,13 @@ public class ZipFile : IEnumerable<ZipEntry>, IDisposable
     }
 
     /// <summary>
-    /// Password to be used for encrypting/decrypting files.
+    /// Password to be used for decrypting files.
     /// </summary>
-    /// <remarks>Set to null if no password is required.</remarks>
+    /// <remarks>
+    /// Set to null if no password is required. ZipFile updates do not encrypt: committing an update
+    /// that adds or rewrites an entry with data while a password is set throws
+    /// <see cref="NotSupportedException"/>.
+    /// </remarks>
     public string Password
     {
         set
@@ -1653,6 +1664,11 @@ public class ZipFile : IEnumerable<ZipEntry>, IDisposable
     /// <seealso cref="BeginUpdate()"></seealso>
     /// <seealso cref="AbortUpdate"></seealso>
     /// <exception cref="ObjectDisposedException">ZipFile has been closed.</exception>
+    /// <exception cref="NotSupportedException">
+    /// A <see cref="Password"/> has been set and the update would add or rewrite an entry with data.
+    /// ZipFile updates cannot create encrypted entries (ZipCrypto is read-only and AES creation is
+    /// not supported here); use <see cref="ZipOutputStream"/> or <see cref="FastZip"/> for AES.
+    /// </exception>
     public void CommitUpdate()
     {
         if (isDisposed_)
@@ -1938,11 +1954,21 @@ public class ZipFile : IEnumerable<ZipEntry>, IDisposable
     /// </summary>
     /// <param name="entry">The entry to add.</param>
     /// <remarks>This can be used to add directories, volume labels, or empty file entries.</remarks>
+    /// <exception cref="NotSupportedException">
+    /// The encryption method specified in <paramref name="entry"/> is unsupported.
+    /// </exception>
     public void Add(ZipEntry entry)
     {
         if (entry == null)
         {
             throw new ArgumentNullException(nameof(entry));
+        }
+
+        // We don't currently support adding entries with AES encryption, so throw
+        // up front instead of failing or falling back to ZipCrypto later on
+        if (entry.AESKeySize > 0)
+        {
+            throw new NotSupportedException("Creation of AES encrypted entries is not supported");
         }
 
         CheckUpdating();
@@ -2179,7 +2205,10 @@ public class ZipFile : IEnumerable<ZipEntry>, IDisposable
                 entry.Flags &= ~(int)GeneralBitFlags.Descriptor;
             }
 
-            if (HaveKeys)
+            // A data-less entry (a directory, or an entry of size zero) carries nothing to encrypt,
+            // and no encryption header is ever written for it, so it must not be flagged as
+            // encrypted either - a reader would expect a header that is not there.
+            if (HaveKeys && (!entry.IsDirectory) && (entry.Size != 0))
             {
                 entry.IsCrypted = true;
                 if (entry.Crc < 0)
@@ -3094,8 +3123,41 @@ public class ZipFile : IEnumerable<ZipEntry>, IDisposable
         }
     }
 
+    /// <summary>
+    /// Throws if this update would write a ZipCrypto (PkzipClassic) encrypted entry. The check runs
+    /// before anything is written, so a refused update leaves the archive unchanged.
+    /// </summary>
+    /// <exception cref="NotSupportedException">
+    /// A password has been set and an entry with data would be added or rewritten.
+    /// </exception>
+    private void CheckNoZipCryptoWrites()
+    {
+        if (IsUnderTest || (!HaveKeys))
+        {
+            return;
+        }
+
+        foreach (var update in updates_)
+        {
+            //Only apply this rule for files - directories are not encrypted, and copied entries are written unchanged
+            if ((update != null)
+                && (update.Command != UpdateCommand.Copy)
+                && (!update.Entry.IsDirectory)
+                && (update.Entry.Size != 0)
+                && (update.Entry.AESKeySize <= 0))
+            {
+                //It seems like we are trying to encrypt an entry, but not using AES.  This is not supported.
+                throw new NotSupportedException("A password has been set, but AES encryption does not seem to be enabled"
+                                                + " - the CodeBrix.Compression library does not support encryption, for"
+                                                + " creating archives or adding files, other than AES encryption.");
+            }
+        }
+    }
+
     private void RunUpdates()
     {
+        CheckNoZipCryptoWrites();
+
         long sizeEntries = 0;
         long endOfStream = 0;
         var directUpdate = false;

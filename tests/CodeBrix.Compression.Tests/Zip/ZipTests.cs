@@ -186,6 +186,7 @@ public class ZipBase
             for (var counter = 0; counter < createSpecs.Length; ++counter)
             {
                 var info = createSpecs[counter] as RuntimeInfo;
+                outStream.IsUnderTest = true; // ZipCrypto writing is only allowed under test
                 outStream.Password = info.Password;
 
                 if (info.Method != CompressionMethod.Stored)
@@ -238,6 +239,7 @@ public class ZipBase
 
         using (var outStream = new ZipOutputStream(ms))
         {
+            outStream.IsUnderTest = true; // ZipCrypto writing is only allowed under test
             outStream.Password = password;
 
             if (method != CompressionMethod.Stored)

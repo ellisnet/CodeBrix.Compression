@@ -11,8 +11,10 @@ It can also decompress two raw legacy stream formats: PKWARE Data Compression
 Library (DCL) "imploded" data, used by many MS-DOS-era installers, and LZW/LZC
 ".Z" data produced by the classic Unix compress utility.
 
-It supports encryption (AES-128, AES-256, ZipCrypto), Zip64 extensions for large
-files, streaming operations, in-memory archive operations, and checksums.
+It supports encryption (AES-128, AES-256; legacy ZipCrypto entries can be read
+but are never written - see ENCRYPTION DETAILS), Zip64
+extensions for large files, streaming operations, in-memory archive operations,
+and checksums.
 
 Target framework: .NET 10 or later.
 
@@ -82,7 +84,7 @@ SUPPORTED FORMATS AND CAPABILITIES
 ==================================
 Format   | Create | Read | Extract | Update | Encrypt
 ---------|--------|------|---------|--------|--------
-Zip      | Yes    | Yes  | Yes     | Yes    | Yes (AES-128, AES-256, ZipCrypto)
+Zip      | Yes    | Yes  | Yes     | Yes    | Yes (AES-128, AES-256; ZipCrypto read-only)
 GZip     | Yes    | Yes  | Yes     | No     | No
 Tar      | Yes    | Yes  | Yes     | No     | No
 BZip2    | Yes    | Yes  | Yes     | No     | No
@@ -311,19 +313,30 @@ Where the update is staged is controlled by IArchiveStorage:
 
     DiskArchiveStorage(ZipFile file)                          // Safe mode
     DiskArchiveStorage(ZipFile file, FileUpdateMode updateMode)
-    MemoryArchiveStorage()                                    // Safe mode
+    MemoryArchiveStorage()                                    // Direct mode
     MemoryArchiveStorage(FileUpdateMode updateMode)
 
 FileUpdateMode values:
   - FileUpdateMode.Safe    Perform all updates on temporary files, so the
-                           original archive survives a failure (the default).
+                           original archive survives a failure (the default
+                           for DiskArchiveStorage).
   - FileUpdateMode.Direct  Update the archive in place; faster, but a failure
                            can leave the archive damaged.
 
-ZipFile.UpdateMode reports the FileUpdateMode of the storage in use. The
-no-argument BeginUpdate() uses disk storage in Safe mode for a file-backed
-ZipFile; pass a MemoryArchiveStorage explicitly when the archive lives in a
-MemoryStream.
+IArchiveStorage.UpdateMode reports the FileUpdateMode of a storage (there is
+no ZipFile.UpdateMode). The no-argument BeginUpdate() uses disk storage in Safe
+mode for a file-backed ZipFile, and memory storage in Direct mode for a
+stream-backed one. An update cannot add encrypted entries of any kind:
+Add(IStaticDataSource, ZipEntry) and Add(ZipEntry) throw NotSupportedException
+when the entry's AESKeySize is greater than zero, and no other Add overload
+produces an AES entry. An update does not write ZipCrypto either: when
+ZipFile.Password is set, CommitUpdate throws NotSupportedException (before
+anything is written, so the archive is left unchanged) if the update adds or
+rewrites any file entry with data. Directory entries, empty entries and deletes
+still work with a Password set (a data-less entry is written UNENCRYPTED, since
+it has nothing to encrypt), and existing entries that are only copied keep
+their original (possibly encrypted) bytes. To add entries unencrypted, set
+Password = null before CommitUpdate. See "ZipCrypto" under ENCRYPTION DETAILS.
 
 Zip64 behavior during an update is controlled by ZipFile.UseZip64, whose values
 are UseZip64.Off, UseZip64.On and UseZip64.Dynamic.
@@ -367,13 +380,15 @@ FastZip options:
         CreateEmptyDirectories = true,         // Preserve empty directory structure
         RestoreDateTimeOnExtract = true,       // Preserve file timestamps
         Password = "optional-password",
-        EntryEncryptionMethod = ZipEncryptionMethod.AES256  // or AES128, ZipCrypto
+        EntryEncryptionMethod = ZipEncryptionMethod.AES256  // or AES128
     };
 
 Available ZipEncryptionMethod values:
   - ZipEncryptionMethod.None        (no encryption; this is the default)
   - ZipEncryptionMethod.ZipCrypto   (legacy and weak; it is marked [Obsolete], so
-                                     referencing it produces a compiler warning)
+                                     referencing it produces a compiler warning;
+                                     creating a zip with it throws
+                                     NotSupportedException)
   - ZipEncryptionMethod.AES128      (AES 128-bit)
   - ZipEncryptionMethod.AES256      (AES 256-bit, recommended)
 
@@ -643,7 +658,7 @@ Tar archives support different character encodings for filenames:
 
 The block factor controls the record size (default is typically 20):
 
-    // Create with custom block factor (1-64)
+    // Create with custom block factor (must be greater than zero)
     using var tarOut = new TarOutputStream(stream, blockFactor: 10, nameEncoding: null);
 
 --- TAR STREAM OWNERSHIP ---
@@ -776,7 +791,7 @@ tar archive wrapped in a single .Z stream, so you wrap one stream in the other
 (see the second example below).
 
 Decompression is supported; compression is NOT. There is no LzwOutputStream
-and no static Lzw helper class - LzwInputStream is the entire public surface.
+and no static Lzw helper class - LzwInputStream is the only stream type.
 
 A .Z stream starts with a 3-byte header:
   bytes 0-1: the magic marker 0x1f 0x9d
@@ -870,10 +885,29 @@ Supported encryption methods for Zip archives:
    - Requires salt of length 8 bytes (handled internally)
    - Good balance of security and performance
 
-3. ZipCrypto (legacy):
+3. ZipCrypto (legacy and weak):
    - Traditional PKZIP encryption
-   - Less secure than AES, use only for compatibility
-   - Used when Password is set but AESKeySize is not specified
+   - Entries protected with it are read and extracted by ZipInputStream,
+     ZipFile and FastZip
+   - ZipOutputStream refuses to write it: when Password is set but
+     AESKeySize is not, PutNextEntry throws NotSupportedException for any
+     file entry that may carry data - including a new ZipEntry whose Size is
+     still unknown (-1). Only directories and entries with Size = 0 set
+     explicitly get through. Set AESKeySize to 256 or 128 on every file entry
+   - FastZip refuses to write it: CreateZip with a Password and
+     EntryEncryptionMethod = ZipEncryptionMethod.ZipCrypto throws
+     NotSupportedException
+   - ZipFile updates refuse to write it: while ZipFile.Password is set to
+     a non-empty value, CommitUpdate throws NotSupportedException if the
+     update adds or rewrites a file entry with data - including when the
+     Password was set only to read an existing archive before BeginUpdate.
+     The check runs before anything is written, so the archive is left
+     unchanged. Existing entries that are only copied keep their original
+     bytes. To add entries unencrypted, set Password = null before
+     CommitUpdate
+   - So ZipCrypto is read-only everywhere in the library. Use AES for new
+     archives: write them with ZipOutputStream (AESKeySize) or FastZip
+     (EntryEncryptionMethod); ZipFile updates cannot encrypt at all
 
 Key classes (namespace CodeBrix.Compression.Encryption):
   - ZipAESTransform: Handles AES encryption/decryption transforms
@@ -1104,7 +1138,10 @@ PERFORMANCE TIPS
    than manual buffer reading for cleaner and often faster code.
 
 8. PREFER AES-256 FOR ENCRYPTION: When encryption is needed, use AES-256
-   (AESKeySize = 256). Avoid ZipCrypto for new archives as it's less secure.
+   (AESKeySize = 256) with ZipOutputStream or FastZip. Nothing in the
+   library writes ZipCrypto, and a ZipFile update cannot encrypt at all: with
+   Password set, CommitUpdate throws NotSupportedException for any added or
+   rewritten entry with data (see ENCRYPTION DETAILS).
 
 9. REGISTER ENCODING PROVIDERS: If working with non-ASCII filenames in Tar
    archives, call Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)
@@ -1234,7 +1271,7 @@ Feature-to-test-file mapping:
   Zip entry factory patterns:
     -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/ZipEntryFactoryHandling.cs
 
-  Zip encryption (AES-128, AES-256, ZipCrypto):
+  Zip encryption (AES-128, AES-256; ZipCrypto reading):
     -> https://github.com/ellisnet/CodeBrix.Compression/blob/main/tests/CodeBrix.Compression.Tests/Zip/ZipEncryptionHandling.cs
 
   AES encryption internals (transforms, streams, salt/block validation):
@@ -1320,9 +1357,8 @@ ZipFile.Create(stream)            Create a new, empty zip in a stream
   .GetInputStream(entry)          Get stream for specific entry
   .Count                          Number of entries
   [index]                         Entry by position
-  .Password                       Password for encrypted entries
+  .Password                       Password for reading encrypted entries
   .UseZip64                       Off | On | Dynamic
-  .UpdateMode                     FileUpdateMode of the active storage
   .TestArchive(testData)          Verify the archive
   .TestArchive(testData, strategy, resultHandler)
 
@@ -1360,7 +1396,7 @@ FastZip                           High-level convenience class
   .CreateZip(zip, dir, recurse, filter)
   .ExtractZip(zip, dir, filter)
   .Password                       Encryption password
-  .EntryEncryptionMethod          None (default), ZipCrypto, AES128, AES256
+  .EntryEncryptionMethod          None (default), AES128, AES256
   .CreateEmptyDirectories         Preserve empty dirs
   .RestoreDateTimeOnExtract       Preserve timestamps
 
