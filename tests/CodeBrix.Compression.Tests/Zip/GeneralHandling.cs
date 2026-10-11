@@ -72,37 +72,11 @@ public class GeneralHandling : ZipBase
 
     /// <summary>
     /// Invalid passwords should be detected early if possible, seekable stream
-    /// Note: Have a 1/255 chance of failing due to CRC collision (hence retried once)
     /// </summary>
     [Fact]
     public void InvalidPasswordSeekable()
     {
-        byte[] originalData = null;
-        var compressedData = MakeInMemoryZip(ref originalData, CompressionMethod.Deflated, 3, 500, "Hola", true);
-
-        var ms = new MemoryStream(compressedData);
-        ms.Seek(0, SeekOrigin.Begin);
-
-        var buf2 = new byte[originalData.Length];
-        var pos = 0;
-
-        var inStream = new ZipInputStream(ms);
-        inStream.Password = "redhead";
-
-        var entry2 = inStream.GetNextEntry();
-
-        Assert.Throws<ZipException>(() =>
-        {
-            while (true)
-            {
-                var numRead = inStream.Read(buf2, pos, buf2.Length);
-                if (numRead <= 0)
-                {
-                    break;
-                }
-                pos += numRead;
-            }
-        });
+        AssertInvalidPasswordDetectedEarly(canSeek: true);
     }
 
     /// <summary>
@@ -138,37 +112,60 @@ public class GeneralHandling : ZipBase
 
     /// <summary>
     /// Invalid passwords should be detected early if possible, non seekable stream
-    /// Note: Have a 1/255 chance of failing due to CRC collision (hence retried once)
     /// </summary>
     [Fact]
     public void InvalidPasswordNonSeekable()
     {
-        byte[] originalData = null;
-        var compressedData = MakeInMemoryZip(ref originalData, CompressionMethod.Deflated, 3, 500, "Hola", false);
+        AssertInvalidPasswordDetectedEarly(canSeek: false);
+    }
 
-        var ms = new MemoryStream(compressedData);
-        ms.Seek(0, SeekOrigin.Begin);
+    /// <summary>
+    /// ZipCrypto checks a wrong password against a single byte of the decrypted 12-byte header,
+    /// and that header is random on every write, so about 1 archive in 256 lets a wrong password
+    /// past the early check (the read then fails later on garbage data or the CRC check). Each
+    /// attempt builds a fresh archive; the test fails only if the early check never fires
+    /// (a chance of 1 in 256^8).
+    /// </summary>
+    private void AssertInvalidPasswordDetectedEarly(bool canSeek)
+    {
+        const int maxAttempts = 8;
 
-        var buf2 = new byte[originalData.Length];
-        var pos = 0;
-
-        var inStream = new ZipInputStream(ms);
-        inStream.Password = "redhead";
-
-        var entry2 = inStream.GetNextEntry();
-
-        Assert.Throws<ZipException>(() =>
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
         {
-            while (true)
+            byte[] originalData = null;
+            var compressedData = MakeInMemoryZip(ref originalData, CompressionMethod.Deflated, 3, 500, "Hola", canSeek);
+
+            var ms = new MemoryStream(compressedData);
+            ms.Seek(0, SeekOrigin.Begin);
+
+            var buf2 = new byte[originalData.Length];
+            var pos = 0;
+
+            using var inStream = new ZipInputStream(ms);
+            inStream.Password = "redhead";
+
+            inStream.GetNextEntry();
+
+            var thrown = Assert.ThrowsAny<Exception>(() =>
             {
-                var numRead = inStream.Read(buf2, pos, buf2.Length);
-                if (numRead <= 0)
+                while (true)
                 {
-                    break;
+                    var numRead = inStream.Read(buf2, pos, buf2.Length - pos);
+                    if (numRead <= 0)
+                    {
+                        break;
+                    }
+                    pos += numRead;
                 }
-                pos += numRead;
+            });
+
+            if (thrown is ZipException && thrown.Message == "Invalid password")
+            {
+                return;
             }
-        });
+        }
+
+        Assert.Fail($"A wrong password was not detected by the early header check in {maxAttempts} attempts");
     }
 
     /// <summary>
